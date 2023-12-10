@@ -1,0 +1,100 @@
+=>Model
+
+=>Database Eloquent ORM (Object-Relational Mapper)
+
+=>Generate Model Class (Model typically live in the app\MOdels directory and extends 
+Illuminate\Database\Elouquent\Model class.)
+
+=Comand Line ( Just Model )
+     php artisan make:model Post
+
+     *model name first letter must be capital letter
+
+=Command Line (Model + Migration )
+php artisan make:model Article --migration
+or
+php artisan make:model Article -m
+
+* model must connect with database table
+* 80% of models create with database migration
+
+-------------------------------------------------------
+=>Inspecting Models to Database Table
+php artisan model:show Article
+
+*DBAL package is not exist. Would you like to install it? (notification)
+*Database, Table and Attributes will show
+*Attributes will show only after migrate
+* Model automatically find table of 's' added after model class name
+-------------------------------------------------------
+=create_articles_table.php
+    up()
+
+    $table->id();
+    $table->string("title");
+    $table->text("description");
+    $table->unsignedBigInteger("user_id");
+    $table->integer("rating");
+    $table->timestamp("created_date")->nullable();
+    $table->timestamp("updated_date")->nullable();
+
+    *Syntax error of mysql(zero value inserting to DATE TIME datatype)
+        to solve the error ->nullable() is set to the DATE TIME column of 'created_at' and 'updated_at'  
+=php artisan migrate:status 
+=php artisan migrate
+=php artisan model:show Article // Attributes are displayed now
+-------------------------------------------------------
+=>Useful Keywords in Model
+=Table name
+protected $table = "articles";
+
+ * 'dogs' table migration is created_at
+  "cutedog" model is created seperately
+  in this situation $table must declare inside model class
+
+    =protected $table = "posts";
+    =php artisan model:show Article // "Article" model work with "posts" table
+
+=Customize Timestamp
+const CREATED_AT = "created_date";
+const UPDATED_AT = "updated_date";
+
+*laravel Eloquent will set created_at and updated_at data automatically
+* default created_at and updated_at data will set to respective column
+
+=Primary Keywords
+protected $primaryKey = "id";
+protected $primaryKey = "invoiceid";
+
+* primaryKey is work with find() method
+
+----------------------------------------------------
+=> Retrieving Datas By Model (Single )
+    $articles = Article::all();
+    return $articles;
+
+    $articles = Article::all();
+    return "$articles";
+
+    $articles = Article::all();
+    var_dump($articles);
+
+    foreach($articles as $article){
+        echo "$article->title <br/> $article->description <br/> <hr/>";
+    }
+
+=>Retrieve a model by primary key from model
+    $articles = Article::find(1);
+
+=>Not Found Exception
+    $articles = Article::find(1);
+
+=>Retrieving Data matching
+     $article = Article::where("user_id",2)->get();
+     return $article;
+
+     =asc/desc
+     $article = Article::where("user_id",1)->orderBy("id","desc")->get();
+     $article = Article::where("user_id",1)->orderBy("id","asc")->get(); // default
+     return $article;
+

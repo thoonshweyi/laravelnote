@@ -1,0 +1,64 @@
+=>Commands
+
+php artisan
+
+=>server run
+php artisan serve
+
+=>Check route list
+php artisan route:list // a to z ASC
+php artisan route:list -r // z to a DESC
+
+=>Check route list by path
+php artisan route:list --path=staff
+php artisan route:list --path=staff -r
+php artisan route:list --path=student
+php artisan route:list --path=car (*error)
+
+=>Check route list by method
+php artisan route:list --method=get
+php artisan route:list --method=get -r
+
+php artisan route:list --method=post
+
+*"ANY" route is work if it is call by GET or POST
+
+=>Migration
+     =>tables to update db server
+          php artisan migrate
+
+     =>Create New table
+          php artisan make:migration create_students_table
+
+     =>Ckeck Migration Status
+          php artisan migrate:status
+
+     =>Undo migration by step 
+          php artisan migrate:rollback
+
+     =>Undo migration by step (selected table count to local)
+          php artisan migrate:rollback --step=2
+
+     =>Check before rollback table list
+          php artisan migrate:rollback --pretend
+
+     =>Delete all tables
+          php artisan migrate:reset
+
+     =>Delete all datas (auto rollback and auto migrate)
+          php artisan migrate:refresh
+
+     =>Delete all datas (auto rollback and auto migrate) (selected table count to local by DESC)
+          php artisan migrate:refresh --step=2
+=>Add New Column
+     php artisan make:migration add_city_to_shoppers_table
+
+=>Change Laravel Timezone
+     config > app.php
+    'timezone' => 'Asia/Yangon',
+
+Note:: php artisan config:clear
+
+--------------------------------------------
+
+=>After login

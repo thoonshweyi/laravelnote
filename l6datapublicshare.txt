@@ -1,0 +1,11 @@
+=>Public Data Passing
+
+app > Providers > AppServiceProvider.php
+
+
+public function boot(): void
+    {
+        view()->composer("file",function(){
+
+        });
+    }

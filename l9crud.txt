@@ -1,0 +1,122 @@
+=>Insert
+     Route::get("articles/insert",function(){
+          => Method 1
+               $article = new Article();
+               $article->title = "this is new article 18";
+               $article->description = "Lorem Ipsum is simply dummy text of the printing and typesetting industry.";
+               $article->user_id = 1;
+               $article->rating = 3;
+               $article->save();
+               return "Data Inserted $article";
+          
+
+          => Method 2
+               $article = Article::create([
+                    "title"=> "this is new article 22",
+                    "description"=> "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
+                    "user_id" => 2,
+                    "rating" => 5
+               ]);
+               return "Data Inserted $article";
+
+          *multi reload can insert multiple row
+          *above two method have its own unique advantages.
+          image file uploading to database need to write multi line of codes
+          in this situation object->columnname method is useful
+
+          => Date Time Explanation And Configuration
+
+               echo now(); // 2023-07-29 14:28:36
+               echo "<br/>";
+               var_dump(now()); // object
+               echo now()->toDateTimeString(); // 2023-07-29 14:30:08
+               echo "<br/>";
+               var_dump(now()->toDateTimeString()); // string
+
+               To change as client location's timezone, Google: php timezone
+               echo now()->toDateTimeString();                  // 2023-07-29 14:33:15 // As laravel server timezone
+               echo "<br/>";
+               echo now("Asia/Yangon")->toDateTimeString();     // 2023-07-29 21:03:15
+               echo "<br/>";
+               echo now("Asia/Bangkok")->toDateTimeString();    // 2023-07-29 21:33:15
+
+               echo date("Y-m-d H:i:s"); // 2023-07-29 14:36:41 // As laravel server timezone
+               
+               * use Carbon\Carbon;
+               $curdatetime = Carbon::now();
+               echo $curdatetime; // 2023-07-29 14:36:41 // As laravel server timezone
+               var_dump($curdatetime); // object
+
+               -------------------------------------------
+
+               // $getdate = now()->toDateTimeString();
+               $getdate = now("Asia/Yangon")->toDateTimeString(); 
+
+               // $today = date("Y-m-d H:i:s");
+
+               // date_default_timezone_set("Asia/Bangkok");
+               $curdatetime = Carbon::now();
+               
+               
+               $article = DB::table("articles")->insert([
+                    "title"=> "this is new article 25",
+                    "description"=> "Lorem Ipsum is simply dummy text of the printing and typesetting industry.",
+                    "user_id" => 2,
+                    "rating" => 5,
+
+                    // "created_date"=> now(),          // 2023-07-29 14:36:41 (server time)
+                    // "updated_date"=> now(),          // 2023-07-29 14:36:41
+
+                                                       // before customized    |   after customized now()
+                                                       // (server time)            (right time)
+                    // "created_date"=> $getdate,       // 2023-07-29 14:36:41  |   2023-07-29 21:03:15
+                    // "updated_date"=> $getdate,       // 2023-07-29 14:36:41  |   2023-07-29 21:03:15
+
+                    // "created_date"=> $getdate,       // 2023-07-29 21:03:15  // (right time) yangon
+                    // "updated_date"=> $today,         // 2023-07-29 14:36:41  // (server time)
+                                                       
+                                                       // before change laravel timezone       | after change laravle timezone        |   after customized date_default_timezone_set()
+                                                       // (right time) yangon                    (right time) yangon                      (right time) yangon
+                                                       // (server time)                                                                   (right time) bangkok
+                    "created_date"=> $getdate,          // 2023-07-29 21:03:15                  | 2023-07-29 21:03:15                  |   2023-07-29 21:03:15
+                    "updated_date"=> $curdatetime,      // 2023-07-29 14:36:41                  | 2023-07-29 21:03:15                  |   2023-07-29 21:33:15 
+               ]);
+               return "Data Inserted $article"; // Data Inserted 1
+
+          });
+
+        =>Change Laravel Timezone
+             = Method 1
+                 config > app.php
+                     timezone' => 'Asia/Yangon',
+            
+                 php artisan config:clear 
+                 *sometime if doen't immediately know the config changes, in this case this command needed to order in order to reflect changes without closing ther server
+             = Method 2
+                 .env
+                     APP_TIMEZONE="Asia/Bangkok" // setting environment variable at .env file
+                 
+                 config > app.php
+                 "timezone" => env("APP_TIMEZONE","UTC"), // accessing the env variable
+                                 env(name,defaultvalue)
+                                 *if the variable is not found in .env, then use default value instead
+
+=>Soft Delete
+
+     = In Model (Article.php)
+          use SoftDeletes;
+          * use Illuminate\Database\Eloquent\SoftDeletes;
+
+     = Migration
+          php artisan make:migration add_softdelete_to_articles_table --table=articles;
+          = add_softdelete_to_articles_table.php
+               up()
+                    $table->softDeletes();
+
+               down()
+                    $table->dropSoftDeletes();
+
+          php artisan migrate:status
+          php artisan migrate
+
+     * 'deleted_at' column added at the last

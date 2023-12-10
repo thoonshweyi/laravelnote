@@ -1,0 +1,13 @@
+=>Blade
+
+filename.blade.php
+
+php artisan make:controller employeesController
+
+=>Passing Data from Route/controller
+(i)view(view,arrayvariable); 
+     (or) 
+     view(view,['string'=>variable,'string'=>variable])
+(ii)with(,);
+(iii)compact();
+     *compact() will be mostly used from now on.

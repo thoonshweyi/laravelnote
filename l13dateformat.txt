@@ -1,0 +1,107 @@
+Route::get("/dates",function(){
+    //=> PHP DateTime Class
+        $date = new DateTime();
+        echo $date->format("d m Y"); // 07 10 2023
+        echo "<br/>";
+
+        echo $date->format("Y m d"); // 2023 10 07
+        echo "<br/>";
+
+        echo $date->format("m d Y"); // 10 07 2023
+        echo "<br/>";
+
+        echo $date->format("d/m/Y"); // 07/10/2023
+        echo "<br/>";
+
+        echo $date->format("d-m-Y"); // 07-10-2023
+        
+        echo "<hr/>";
+
+        $date = new DateTime("+5 day");
+        echo $date->format("d m Y"); // 12 10 2023
+        echo "<br/>";
+
+        $date = new DateTime("+1 week"); // 14 10 2023
+        echo $date->format("d m Y"); 
+        echo "<hr/>";
+    // --------------------------------------------
+    //=> Laravel Carbon Class
+
+        // *use Carbon\Carbon
+        echo Carbon::now(); // 2023-10-07 20:41:16
+        echo "<br/>";
+
+        //=> addDays()
+
+            echo Carbon::now()->addDays(10); // 2023-10-17 20:42:03
+            echo "<br/>";
+
+            echo Carbon::now()->diffForHumans(); // 1 second ago
+            echo "<br/>";
+
+            echo Carbon::now()->addDays(1)->diffForHumans(); // 23 hours from now
+            echo "<br/>";
+
+            echo Carbon::now()->addDays(3)->diffForHumans(); // 2 days from now
+            echo "<br/>";
+
+            echo Carbon::now()->addDays(10)->diffForHumans(); // 1 week from now
+            echo "<br/>";
+
+        // =>subDays()
+
+            echo Carbon::now()->subDays(1); // 2023-10-06 20:48:27
+            echo "<br/>";
+
+            echo Carbon::now()->subDays(1)->diffForHumans(); // 1 day ago
+            echo "<br/>";
+
+            echo Carbon::now()->subDays(3)->diffForHumans(); // 3 days ago
+            echo "<br/>";
+
+            echo Carbon::now()->subDays(10)->diffForHumans(); // 1 week ago
+            echo "<br/>";
+
+        //=> addMonth()
+            echo Carbon::now()->addMonths(1); // 2023-11-07 20:52:35
+            echo "<br/>";
+
+            echo Carbon::now()->addMonths(1)->diffForHumans(); // 4 weeks from now
+            echo "<br/>";
+
+            echo Carbon::now()->addMonths(3)->diffForHumans(); // 2 months from now
+            echo "<br/>";
+
+            echo Carbon::now()->addMonths(10)->diffForHumans(); // 9 months from now
+            echo "<br/>";
+        
+        // =>subMonths()
+
+            echo Carbon::now()->subMonths(1); // 2023-09-07 20:54:37
+            echo "<br/>";
+
+            echo Carbon::now()->subMonths(3)->diffForHumans(); // 3 months ago
+            echo "<br/>";
+
+            echo Carbon::now()->subMonths(10)->diffForHumans(); // 10 months ago
+            echo "<br/>";
+
+        // => yesterday() tomorrow()
+            echo Carbon::now()->yesterday()->diffForHumans(); // 1 day ago
+            echo "<br/>";
+
+            echo Carbon::now()->tomorrow()->diffForHumans(); // 3 hours from now
+            echo "<br/>";
+
+        // diffForHumans() - different of current date to the specific date from the view of human
+            // = future date
+            // current date - 7 10 2023
+            // target date  - 12 10 2023
+            // human diff   = 4 days from now(do calculate date of 12)
+            //                  it only calculate from current date to reach the target date      
+            
+            // = previous date 
+            // current date - 7 10 2023
+            // past date    - 5 10 2023
+            // human diff   = 2 days ago (exactly calculate the past days)
+});

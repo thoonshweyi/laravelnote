@@ -1,0 +1,73 @@
+=> MVC Framework (Model, View, Controller)
+
+=Model
+it's work with database (Select,insert,update,delete)
+communicate with the controller (when controller request or a data to model !)
+
+=View
+A view is that part of the application that represents the pressentation of data HTML CSS code for end user see.
+
+=Controller
+the controller receives input from the user,  process the request (GET,POS,PUT,DELETE)
+-----------------------------------------------------
+Version Needed
+php 8.1^
+composer 2.4^
+
+php -v
+php --Version
+
+composer
+-----------------------------------------------------
+=>Installation
+Method 1
+composer create-project laravel/laravel projectname
+
+Method 2
+composer global require laravel/installer
+laravel new example-app
+
+=composer create-project laravel/laravel excone
+-----------------------------------------------------
+=>Folder and File Structure
+1. app > Http > Controller 
+2. app > Models     
+    (database management)
+3. database > migrations 
+    (to create tables)
+4. public 
+    (for public custom css / custom js)
+5. resources > views > 
+    (html codes)
+6. rooutes > web.php (or) routes > api.php
+7. .env 
+    
+
+routes >
+api.php ( generated api )
+web.php ( for web browser route only )
+channels.php
+( 
+for broadcasting live action like push notification 
+eg. chat message notification alert 
+eg. grab taxi moving 
+)
+console.php ( for advanced command )
+
+-----------------------------------------------------
+=>Run project
+php artisan serve
+
+=>Stop Project 
+php artisan down
+
+=>Resume Project
+php artisan up
+
+php artisan down --redirect=/https://google.com
+-----------------------------------------------------
+
+20IN
+
+
+

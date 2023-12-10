@@ -1,0 +1,44 @@
+=>Controller
+*controller naming must be plural
+
+
+php artisan make:controller studentsController
+
+*controller, model, view must be students
+
+// Route::get("/students",[\App\Http\Controllers\studentsController::class,'index'])->name("students.index");
+// Route::get("/students/show",[\App\Http\Controllers\studentsController::class,'show'])->name("students.show");
+// Route::get("/students/edit",[\App\Http\Controllers\studentsController::class,'edit'])->name("students.edit");
+
+=>Route Group
+Route::group(['prefix'=>"students"],function(){
+    Route::get("/",[\App\Http\Controllers\studentsController::class,'index'])->name("students.index");
+    Route::get("/show",[\App\Http\Controllers\studentsController::class,'show'])->name("students.show");
+    Route::get("/edit",[\App\Http\Controllers\studentsController::class,'edit'])->name("students.edit");
+});
+
+Route::name("students.")->group(function(){
+    Route::get("/students",[\App\Http\Controllers\studentsController::class,'index'])->name("index");
+    Route::get("/students/show",[\App\Http\Controllers\studentsController::class,'show'])->name("show");
+    Route::get("/students/edit",[\App\Http\Controllers\studentsController::class,'edit'])->name("edit");
+});
+
+=>Controller Class Shortcut
+use App\Http\Controllers\studentsController;
+
+Route::name("students.")->group(function(){
+    Route::get("/students",[studentsController::class,'index'])->name("index");
+    Route::get("/students/show",[studentsController::class,'show'])->name("show");
+    Route::get("/students/edit",[studentsController::class,'edit'])->name("edit");
+});
+
+
+php artisan make:controller staffsController
+------------------------------------------------------
+=>Resource Controller
+    php artisan make:controller CountriesController --resource
+
+    (or)
+
+    php artisan make:controller CountriesController -r
+

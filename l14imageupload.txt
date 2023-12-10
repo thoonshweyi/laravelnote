@@ -1,0 +1,463 @@
+=>Image Upload
+
+=Single Upload
+
+     =Migration
+
+          php artisan make:model Product -m
+
+          
+          = create_phones_table.php
+               $table->string("name");
+               $table->decimal("price",9,2);
+               $table->string("image");
+
+          php artisan migrate:status
+          php artisan migrate
+
+     =In Model (Product.php)
+
+          protected $table = "products";
+
+          protected $fillable = [
+               "name",
+               "price",
+               "image"
+          ];
+
+     =In CMD
+
+          php artisan make:controller ProductController --resource
+
+          (or)
+
+           php artisan make:controller ProductController -r
+
+     =In Web
+          Route::resource("products",ProductController::class);
+
+     php artisan route:list
+     php artisan route:list --path=products
+
+     =folder create view > products
+     =copy all file from countries>
+     =create.blade.php 
+     =index.blade.php
+
+     vscode > find(ctrl+f) >
+     countries - products
+     country - products
+
+     => In ProductController
+          copy all from CountriesController
+          Country: - Product:
+
+          =carefully define database column field
+
+          =Insert a product without giving image file will get error.
+          =Insert a product with a image file wil only store image temp file path and 
+               it will not actually store the image file
+
+     =>Image create 
+          =In create.blde.php
+               <div class="col-md-6 mb-3">
+                    <label for="currency">Product Photo</label>
+                    <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0"/>
+                </div>
+
+     => Image Preview
+          =In app.blade.php (under title)
+               @section("style")
+          =In create.blde.php
+               @section("style")
+                    <style type="text/css">
+                         .gallery{
+                                   width: 100%;
+                                   background-color: #eee;
+                                   color: #aaa;
+
+                                   text-align: center;
+                                   padding: 10px;
+                                   margin: 20px 0;
+                              }
+                              .gallery img{
+                                   width: 100px;
+                                   height: 100px;
+                                   border: 2px dashed #aaa;
+                                   border-radius: 10px;
+                                   object-fit: cover;
+
+                                   padding: 5px;
+                                   margin: 0 5px;
+                              }
+                              .removetxt span{
+                                   display: none;
+                              }
+                    </style>
+                    @endsection
+
+               @section("script")
+                    <script type="text/javascript">
+                         $(document).ready(function(){
+                              // console.log('hi');
+
+                              var previewimages = function(input,output){
+
+                                   // console.log(input.files);
+
+                                   if(input.files){
+                                        var totalfiles = input.files.length;
+                                        // console.log(totalfiles);
+                                        if(totalfiles > 0){
+                                        $('.gallery').addClass('removetxt');
+                                        }else{
+                                        $('.gallery').removeClass('removetxt');
+                                        }
+                                        for(var i = 0 ; i < totalfiles ; i++){
+                                        var filereader = new FileReader();
+
+
+                                        filereader.onload = function(e){
+                                                  $($.parseHTML('<img>')).attr('src',e.target.result).appendTo(output);
+                                        }
+
+                                        filereader.readAsDataURL(input.files[i]);
+
+                                        }
+                                   }
+                              
+                              };
+
+                              $('#image').change(function(){
+                                        previewimages(this,'.gallery');
+                              });
+                         });
+                    </script>
+               @endsection
+     
+     =>Image store
+               project > public
+               project > storage
+               *all image file, audio, video, text fiel will store in above two  file location
+
+          => 1. Public Folder (public/customfolder/)
+               -sub folder is created to organize
+                    
+               $request->image->move('customfolder',$imagename);
+               $request->image->move(public_path('customfolder'),$imagename);
+
+          => 2. Storage Filder/ Local Driver (storage/app/customfolder/)
+                    storage >
+                    storage > app
+                    
+                    $request->image->storeAs(customfolder,$imagename,drive)
+                    
+                    $request->image->store('customfolder/')
+                    
+                    Storage::disk('local')->put(customfolder.$file,'content',visibility);
+                                                                 optional
+                         *use Illuinate\Support\Facades\Storage
+                         *Storage method is more sutible for online storage. For local, it is good to use for writing log file.
+                         Log file is a text file(.txt) which record who delete the file, when did the server open and whe didi the server close. 
+                    ---------------------------------------
+                    php artisan storage:link
+
+                    storage > app > public > images
+                    => copy to
+                    public > storage > images
+                    *only copy storage > app > public > to public folder 
+                    *all file will update to date with public folder
+          aws > s3 (cloud service)
+          google drive                                                  optional
+
+          *on ground situation never store project file in the project folder for the folloing reasons
+               -for larger server capacity
+               -server performance
+               -backup on git/harddisk take long time
+               -hard to manage the files
+          *on real world use to servers one for project launch and another for storage
+               in the project, use upload link of the file
+
+          =In ProductController
+
+              public function store(Request $request)
+               {
+                    = Public
+                         $product = new Product();
+                         $product->name= $request["name"];
+                         $product->price= $request["price"];
+
+                         $file = $request->file("image");
+                         if($file){
+                         
+                              $filename = $file->getClientOriginalName();  // user1.jpg
+                              // $imagenewname = date("ymdHis").$filename;    // 231008182139user1.jpg
+                              $imagenewname = time().$filename;               // 1696764194user1.jpg
+                              $imagenewname = uniqid().$filename;               // 6571b7a01728fuser1.jpg
+
+                              // dd($filename);
+                              // dd($imagenewname); 
+
+                              $file->move("images",$imagenewname);
+
+                              $product->image = $imagenewname;
+                         }    
+                         $product->save();
+                         return redirect(route("products.index"));
+                         *public > images
+                         ------------------------------
+                         if($file){
+                              
+                              $fname = $file->getClientOriginalName(); 
+                              $imagenewname = time().$fname;               // 1696764194user1.jpg
+
+                              // $fileurl = $file->move("images",$imagenewname);         // 	images\1701952618user1.jpg
+                              $fileurl = $file->move(public_path('images'),$imagenewname); // // 	D:\datalandcourses\datalandlaravelbatch1\lesson\exerciseone\public\images\1701952901user1.jpg
+
+                              $product->image = $fileurl; 
+                         }
+
+                         $product->save();
+                         return redirect(route("products.index"));
+                         It store image file on the server public > images. But some os need to grant permession for read write file.
+                         *sub folder can be created public_path('images/profile')                 
+               
+                    = Storage
+                         if($request->hasfile('image')){
+                              $fnameext = $file->getClientOriginalExtension(); // jpg
+                              $imagenewname = uniqid().".".$fnameext; // 6571c12348c38.jpg
+                              // dd($fnameext);
+                              // dd($imagenewname);
+
+                              $file->storeAs("images",$imagenewname);
+                              $product->image = $imagenewname;
+                         }
+                         $product->save();
+                         return redirect(route("products.index"));
+                         *storage > app > images
+
+                         if($request->hasfile('image')){
+                              $fnameext = $file->extension(); // jpg
+                              $imagenewname = time().".".$fnameext; // 1696766671.jpg
+                              // dd($fnameext);
+                              // dd($imagenewname);
+
+                              $file->storeAs("public/images",$imagenewname); // public/images/1696766671.jpg
+                              $product->image = $imagenewname;
+                         }
+                         *storage > app > public > images
+                         
+
+                         if($request->hasfile('image')){
+                              $fnameext = $file->extension(); // jpg
+                              $imagenewname = time().".".$fnameext; // 1696766671.jpg
+                              // dd($fnameext);
+                              // dd($imagenewname);
+
+                              $fileurl = $file->storeAs("public/images",$imagenewname); // public/images/1696766671.jpg
+                              $product->image = $fileurl;
+                         }
+                         ------------------------------
+
+                         if($request->hasfile('image')){
+                              // $fileurl = $file->store(); // xrWRknkrsZOHwIXS47gzkkBhXBvig4X4UJPSrcM4.jpg
+                              // * storage > app
+                              $fileurl = $file->store("images"); // images/yfdw2PKhja6nDUHI0OlcDn8R4ND4Bfq8515vfOAE.jpg
+                              // *storage > app > images >
+                              
+                              $product->image = $fileurl;
+                         }
+                         ------------------------------
+                         if($request->hasfile("image")){
+                              $fnameext = $file->extension(); // jpg
+                              $imagenewname = uniqid().".".$fnameext;
+
+                              // dd($file); // File Object
+                              // dd($file->get()); // encodeded (binary like) code
+                              // dd(file_get_contents($file)); // encodeded (binary like) code
+
+                              // Storage::disk("local")->put("text.txt",'hello world',optional)
+                              
+                              // Storage::disk("local")->put("images/".$imagenewname,$file->get());
+                              
+                              // *error (image loading)
+                              // *file reading is important
+                              // Storage::disk("local")->put("images/".$imagenewname,"hello world");
+
+                              $product->image = $imagenewname;
+                         }
+                         * storage > app > images
+               }                      
+               
+     =>Image View         
+          =In index.blade.php     
+               {{-- <td>{{$product->image}}</td> --}}
+                    <td>
+                         <!-- Image view -->
+                         <!-- =>public -->
+                              
+                              <img src="{{ asset($product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+                              <img src="{{ asset('images/'.$product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />
+
+                              <img src="{{ url($product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+                              <img src="{{ url('images/'.$product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+
+                              <img src="{{ URL::asset($product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+                              <img src="{{ URL::asset('images/'.$product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+
+                              <!-- 
+                                   call image under public > images
+                                   -image store with path (images\1701952618user1.jpg)
+                                        directly give image column as parameter
+                                        asset($product->image) 
+                                   -image store without path (1701952438user1.jpg)
+                                        *prefer method
+                                        concat the image column with path as parameter
+                                        asset('images/'.$product->image)
+                                   
+                                   http://127.0.0.1:8000/images/1701952618user1.jpg
+                                   
+                                   *error image (double paths)
+                                   http://127.0.0.1:8000/images/images\1701952618user1.jpg
+                                   *error image (no path)
+                                   http://127.0.0.1:8000/1701952438user1.jpg
+                                   
+                               -->
+                         <!-- =>storage -->
+                         
+                              <img src="{{ asset('storage/'.$product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+                              <img src="{{ asset('storage/images/'.$product->image) }}" class="rounded-circle" style="width: 50px; height: 50px;" alt="{{$product->image}}" />  
+                              <!-- call image under public > storage > images -->
+
+                              <!-- http://127.0.0.1:8000/storage/images/1702027420.jpg -->
+                              
+                              <!-- *error image (no path) -->
+                              <!-- http://127.0.0.1:8000/storage/1702027420.jpg -->
+                              
+                         </td>
+                    <td>     
+
+     =>Image Edit     
+          =In edit.blade.php
+               =Add Image Preview to see newly uploaded image
+               
+               <div class="col-md-6 mb-3">
+                    <label for="image">Image</label>
+                    <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{$product->image}}"/>
+               </div>
+               *previous image can't not display by providing value="" in file input
+
+          = In ProdutController.php
+               public function update(Request $request, string $id)
+               {
+                    //=> Public
+                         $product = Product::findOrFail($id);
+                         $product->name= $request["name"];
+                         $product->price= $request["price"];
+
+                         if($request->hasfile('image')){
+
+                              $file = $request->file("image");
+
+                              
+                              $filename = $file->getClientOriginalName();  // user1.jpg
+                              $imagenewname = uniqid().$filename;               // 6571b7a01728fuser1.jpg
+
+                              $file->move(public_path("images"),$imagenewname);
+
+                              $product->image = $imagenewname;
+                         }
+                         $product->save();
+                         return redirect(route("products.index"));
+                         =update product by providing image file and without providing image file
+                         *condition check if image file exist it will update the image file
+                         if image file is not exist, it will skip update process
+                    //=> Storage
+                              if($request->hasfile('image')){
+                                   $file = $request->file("image");
+                                   $fnameext = $file->getClientOriginalExtension(); // jpg
+                                   $imagenewname = uniqid().".".$fnameext; // 6571c12348c38.jpg
+
+                                   $file->storeAs("public/images",$imagenewname);
+                                   $product->image = $imagenewname;
+                              }
+                              $product->save();
+                              return redirect(route("products.index"));
+
+                              if($request->hasfile('image')){
+                                   $file = $request->file("image");
+                                   $fileurl = $file->store("public/images");           
+                                   // $product->image = $fileurl;
+                                   $product->image = trim($fileurl,"public");
+                              }
+                              $product->save();
+                              return redirect(route("products.index"));
+                              error image (complex path), if not remove public
+                              http://127.0.0.1:8000/storage/images/public/images/1702027582.jpg 
+                              
+                              double backshash (//), but it work
+                              http://127.0.0.1:8000/storage//images/b5f0cKt314MscFl9hwS77IR3GwPfbjAxIFLpZUnA.jpg
+                              
+                              ------------------------------
+                              if($request->hasfile("image")){
+                                   $file = $request->file("image");
+                                   
+                                   $fnameext = $file->extension(); // jpg
+                                   $imagenewname = uniqid().".".$fnameext;
+
+                                   
+                                   // Storage::disk("local")->put("public/images/".$imagenewname,$file->get(),'public');
+                                   // Storage::disk("local")->put("public/images/".$imagenewname,file_get_content($file),'public');
+                                   Storage::disk("local")->put("public/images/".$imagenewname,File::get($file),'public');
+                                   // * use Illuminate\Support\Facades\File;
+                                   
+                                   $product->image = $imagenewname;
+                              }
+                              $product->save();
+                              return redirect(route("products.index"));
+               }      
+
+          => Old image delete
+               * can use for both update and delete
+
+               =>In ProductController.php
+                    // delete old file and updaten new file
+                    = Public 
+
+                         if($request->hasfile('image')){
+                              $path = public_path("images/").$product->image;
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+
+                         if($request->hasfile('image')){
+
+                              $file = $request->file("image");
+
+                              
+                              $filename = $file->getClientOriginalName();  // user1.jpg
+                              $imagenewname = uniqid().$filename;               // 6571b7a01728fuser1.jpg
+
+                              $file->move(public_path("images"),$imagenewname);
+
+                              $product->image = $imagenewname;
+                         }
+                         $product->save();
+                         return redirect(route("products.index"));
+
+                         //html input file use hasfile()
+                         //harddisk file chek use File::exists()
+
+                    =Storage
+                         if($request->hasfile('image')){
+                              $path = storage_path("app/public/images/").$product->image;
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+                         // file store code for storage
+
+                         - storage_path() represent storage > folder
+
+          * Althought, Image Preview (gallery) show many image, the code is for single image upload and it only upload only one last image.

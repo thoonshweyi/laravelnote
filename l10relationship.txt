@@ -1,0 +1,659 @@
+
+=One to One
+     *use only when a record in one entity (table) is associated with exactly one record in another entity (table)
+          eg. "users" "genders" (a user can have only one gender)
+     *In this study, sayar use "articles" and "users" tables 
+
+     =In Model (User.php)
+          protected $table = "users";
+          protected $primaryKey = "id";
+
+          public function article(){
+               // Method 1
+               return $this->hasOne("App\Models\Article");
+          
+               // Method 2
+               // return $this->hasOne(Article::class);
+               // *method is prefered
+          }
+
+     =In Model (Article.php)
+
+           public function user(){
+               return $this->belongsTo("App\Models\User");
+
+               // return $this->belongsTo(User::class);
+          }
+     
+     =In Web
+
+          * use App\Models\User;
+
+          Route::get("users/{id}/article",function($id){
+               $article = User::findOrFail($id)->article->title;
+               // $article = User::findOrFail($id)->article->description; 
+               // $article = User::findOrFail($id)->article->rating; 
+               return $article;
+          });
+
+          *Proceeded SQL Code
+          select * from `articles` where `articles`.`user_id` = 2 and `articles`.`user_id` is not null and `articles`.`deleted_at` is null limit 1
+
+          Route::get("article/{id}/user",function($id){
+               // $article = Article::findOrFail($id)->user->name;
+               $article = Article::findOrFail($id)->user->email;
+               return $article;
+          });
+          // which article is written by which user
+
+// users default table
+// article() is singular because it will only retrieve one records.
+// user() 
+     According to laravel framework, it is required to express the two tables relationship at models methods. 
+----------------------------------------------
+=One to Many
+     *when one record in a table can be associated with one or more records in another table.
+     * In this study, user write many articles.
+     
+     =In Model (User.php)
+
+          public function articles(){
+               return $this->hasMany(Article::class);
+          }
+
+     =In Model (Article.php)
+          *need to declare user() if above one to one relationship is not defined.
+
+     =In Web
+
+          Route::get("articles/{id}/byuser",function($id){
+          $user = User::findOrFail($id);
+          // return $user->articles;
+          
+          foreach($user->articles as $article){
+               // echo $article."<br/>";
+               echo $article->title."<br/>";
+          }
+
+          });
+          // get articles by the user
+
+
+----------------------------------------------
+= Many to Many
+     * when multiple records in a table are associated with multiple records in another table.
+     * In this study, many users get multi roles.
+     * a dummy table or link table is required to build. 
+          "users" and "phones" can be related by "users_phones" tables
+     
+     =Migration
+          php artisan make:migration create_roles_table
+          (or)
+          php artisan make:migration create_roles_table --create="roles"
+          
+          php artisan make:model Role
+
+     (vs) 
+
+          php artisan make:model Role -m
+
+     =create_roles_table.php
+          up()
+               $table->string("name");
+
+
+     =Obey by Laravel Nameing Covension
+
+          php artisan make:migration create_roles_users_table --create="role_user"
+
+          =create_roles_users_table.php
+               up()
+                    $table->unsignedBigInteger("user_id");
+                    $table->unsignedBigInteger("role_id");
+
+          php artisan migrate:status
+          php artisan migrate
+
+          =In Model (User.php)
+               public function roles(){
+                    return $this->belongsToMany(Role::class);
+               };
+
+          =In Web
+          Route::get("user/{id}/role",function($id){
+               $user = User::findOrFail($id);
+               return $user->roles;
+               // [{"id":3,"name":"viewer","created_at":null,"updated_at":null,"pivot":{"user_id":2,"role_id":3}},{"id":4,"name":"subscriber","created_at":null,"updated_at":null,"pivot":{"user_id":2,"role_id":4}}]
+               // "pivot" table from "role_user"
+               //  front table from "roles"
+
+               foreach($user->roles as $role){
+                    echo $role->name."<br/>";
+               }
+
+               $user = User::findOrFail($id)->roles()->get();
+               // $user = User::findOrFail($id)->roles()->orderBy("id","asc")->get();
+               return $user;
+          });
+          // which user get which roles
+          
+          =Migration
+               php artisan migrate:rollback --pretend
+               php artisan migrate:rollback
+
+               =delete create_roles_users_table.php
+
+               php artisan make:migration create_users_roles_table --create="role_user"
+               =create_users_roles_table.php
+                    up()
+                    $table->unsignedBigInteger("user_id");
+                    $table->unsignedBigInteger("role_id");
+
+               php artisan migrate:status
+               php artisan migrate
+               
+               *run route("user/{id}/role") in browser will get no errors because we just change migration file(roles_users to users_roles) name not table name (role_user)
+
+     =For Custom Table Name
+
+          php artisan migrate:rollback --pretend
+          php artisan migrate:rollback
+          
+          =delete create_users_roles_table.php
+
+          =Migration
+               php artisan make:migration create_users_roles_table --create="userroles"
+               =create_users_roles_table.php
+                    up()
+                    $table->unsignedBigInteger("user_id");
+                    $table->unsignedBigInteger("role_id");
+          
+          php artisan migrate:status
+          php artisan migrate
+
+          =run route("user/{id}/role") in browser
+          **error because laravel default table name changed
+          Base table or view not found: 1146 Table 'exerciseone.userroles' doesn't exist
+          
+          =In Model (User.php)
+          public function roles(){
+               // = For Custom Table Name
+               // belongsToMany(primarytable,secondarytable,secondarytable_fk,primarytable_fk)
+               // belongsToMany(related,table,foreignPivotKey,relativePivotKey)
+
+
+                return $this->belongsToMany(Role::class,"userroles","user_id","role_id");
+          }
+          *if table model doesn't exist, table name will pass instead. 
+          =run route("user/{id}/role") in browser will get no error
+
+     => belongsToMany with withPivot()
+          =In Model (User.php)
+
+          public function rolecreatedate(){
+               // belongsToMany(related,table,foreignPivotKey,relativePivotKey)
+
+               // return $this->belongsToMany(Role::class)->withPivot("created_at"); 
+               // Error Base table or view not found: role_user doesn't exist
+
+               return $this->belongsToMany(Role::class,"userroles","user_id","role_id")->withPivot("created_at");
+     
+          }
+
+          =In Web
+          Route::get("users/{id}/rolecreate",function($id){
+               $user = User::findOrFail($id);
+
+               foreach($user->rolecreatedate as $role){
+                    echo $role->pivot->created_at."<br/>";
+               }
+          });
+
+
+----------------------------------------------------------------------------
+=Has Many Through
+     * "genders" > "users" > "articles"
+
+     =>Migration
+          =Create "gender" table
+               php artisan make:model Gender -m
+               =create_gender_table.php
+                    up()
+                    $table->string("name");
+
+          =Add Column 'gender_id' to "users" table
+               php artisan make:migration add_gender_id_to_users_table --table=users 
+               =add_gender_id_to_users_table.php
+                    up() by sort
+                    $table->integer("gender_id")->after("password");
+
+                    =down()
+                    $table->dropColumn("gender_id");
+               
+          php artisan migrate:status
+          php artisan migrate
+
+     =Add data into "genders" table from phpmyadmin
+          1 male
+          2 female
+          3 other
+
+     =Add data into "users" table from phpmyadmin
+          id   name           email               email_verified_at   passwrod 
+          --------------------------------------------------
+          1    aung aung      aungaung@gmail.com  NULL       123456
+          2    kyaw kyaw      kyawkyaw@gmail.com  NULL
+          3    su su          susu@gmail.com      NULL
+          4    aye aye        ayeaye@gmail.com    NULL
+          5    nandar         nandar@gmail.com    NULL
+          6    tun tun        tuntun@gmail.com    NULL
+          7    yamin          yamin@gmail.com     NULL
+
+          "id","name","email","email_verified_at","password","gender_id","remember_token","created_at","updated_at"
+          "1","aung aung","aungaung@gmail.com",NULL,"123456","1",NULL,NULL,NULL
+          "2","kyaw kyaw","kyawkyaw@gmail.com",NULL,"123456","1",NULL,NULL,NULL
+          "3","su su","susu@gmail.com",NULL,"123456","2",NULL,NULL,NULL
+          "4","ayeaye","ayeaye@gmail.com",NULL,"123456","2",NULL,NULL,NULL
+          "5","nandar","nandar@gmail.com",NULL,"123456","2",NULL,NULL,NULL
+          "6","tun tun","tuntun@gmail.com",NULL,"123456","3",NULL,NULL,NULL
+          "7","yamin","yamin@gmail.com",NULL,"123456","3",NULL,NULL,NULL
+
+
+     =In Model (Gender.php)
+     public function articles(){
+          // hasManyThrough(related,throrgh)
+          return $this->hasManyThrough(Article::class,User::class);
+
+          // hasManyThrough(related,throrgh,firstKey,secondKey)
+          return $this->hasManyThrough(Article::class,User::class,"gender_id","user_id");
+    
+     }
+     *hasManyThrough(finalModel,throughModel,throughtable_fk,finaltable_fk)
+
+     =In Web
+          Route::get("genders/{id}/article",function($id){
+               $gender = Gender::findOrFail($id);
+
+               foreach($gender->articles as $article){
+                    echo $article->title."<br/>";
+               }
+          });
+     *female written article
+     *male written artlcle
+     
+     *can also use in E-commerge website of brand filter / price filter feature
+          orders > products > categoreis
+     *can also use in Movie site of movie name filter / type(hollywood,bollywood,cartoon,survival) filter
+          moviegenres > movies > genres
+----------------------------------------------------------------------------
+=>Polymoerphic relationship
+     
+     *Why we need dummy table?
+          -every article post has different type of structure.
+               id img cover caption subcaption contnet  price img1 img2 img3 img4
+          -it is impossible to add columns for multiple images
+          -database should be flexible as needed for fewer images or many images
+          -a dummy table is needed
+
+          "articles" table
+               id img cover caption subcaption contnet  price
+          =dummy table     
+               id img article_id
+
+     *why polymorphic relationship?
+          "articles" table
+               id img cover caption subcaption contnet  price
+          
+          "users" table  
+               id username password
+
+          "articlecomments" table
+               id   message        user_id        article_id
+               1    good article   1              1
+               2    vert nice      1              1     
+          
+          One To Many relationship can be use to retrieve report.
+
+          *when the website can have comments on not only "article" but also "faqs" and "products"
+
+          "faqs" table  
+               id img question content
+     
+          "users" table  
+               id username password
+
+          "faqcomments" table
+               id   message             user_id        faq_id 
+               1    good solution       1              1
+               2    it is fixed         1              1    
+          
+
+          *there are many comments tables which are not related
+               "articlescomments" is not for faqs
+               "faqcomments" is not for articles
+          *However it can solve the problem, it is not efficient.
+
+          =Polymorphic
+          
+               "articles" table
+                    id img cover caption subcaption contnet  price
+
+               "faqs" table  
+                    id img question content
+               
+               "faqcomments" table
+
+                    id   message             user_id        faq_id 
+                    1    good solution       1              1
+                    2    it is fixed         1              1    
+                    1    good article        1              1
+                    2    vert nice           1              1     
+               *polymorphic have naming convention if the conflict between article-1 and faq-1
+
+               -------------------------------------------------------------------------------------
+               
+                    
+                    "articles" table
+                         id img cover caption subcaption contnet  price
+
+                    "products" table
+                         id caption subcaption contnet  price
+
+                    "faqs" table  
+                         id img question content
+
+
+                    "photos" table
+                         id   path           imageable_id   imageable_type
+                         1    photo1.jpg     1              App\Model\Article
+                         1    photo1.jpg     1              App\Model\Product
+                         1    photo1.jpg     1              App\Model\Faq
+                    
+                    *Polymorphic relationship concpet, *able_id, *able_type have to defined
+                    *Since it mentioned model name, it is clear to know that which id of which table are called
+
+     =Migration
+          php artisan make:model Photo -m
+          =create_photos_table.php
+               up()
+                    $table->string("path");
+                    $table->integer("imageable_id")->unsigned();
+                    $table->string("imageable_type")->unsigned();
+
+          php artisan migrate:status
+          php artisan migrate
+
+
+     =In Model (User.php)
+
+          public function phptos(){
+               // morphMany(relativetable,name);
+               return $this->morphMany(Photo::class,"imageable");
+          }
+
+     =In Model (Article.php)
+
+          public function phptos(){
+               // morphMany(relativetable,name);
+               return $this->morphMany(Photo::class,"imageable");
+          }
+          
+     *At polymorphic table, "photoable_id" and "photoable_type" is defined then
+          At base(articles,users) table, $this->morphMany(Photo::class,"phototable");
+
+     =In Web
+     Route::get("users/{id}/photo",function($id){
+
+          $user = User::findOrFail($id);
+
+          foreach($user->photos as $photo){
+               echo $photo->path."<br/>";
+          }
+     });
+
+     Route::get("articles/{id}/photo",function($id){
+
+          $article = Article::findOrFail($id);
+
+          foreach($article->photos as $photo){
+               echo $photo->path."<br/>";
+          }
+     });
+
+
+
+     = Reverse Thinking
+
+          =In Model (Photo.php)
+
+               public function imageable(){
+                    // morphTo();
+                    return $this->morphTo();
+               }
+          *morphTo() defined, photo model is related with all connected base tables 
+
+
+          =In Web
+               Route::get("photos/{id}/result",function($id){
+
+                    // $photo = Photo::findOrFail($id);
+                    // return $photo->imageable; // can result row from both article and user
+                    // return $photo->imageable->title; // It is fine whent id is article and it can out empty when id is user.
+               });
+
+          =>Custom function name
+
+               =In Model (Photo.php)
+
+                    public function phototable(){
+                         // morphTo("name");
+                         return $this->morphTo("imageable"); // Note:: if you use imageable_id imageable_type !! set here imageable
+                    }
+
+                    *At polymorphic table, "imageable_id" and "imageable_type" is defined then
+                         At ploymorphic Model function must be imageable() according naming convention
+                    *If you want to use custom function name, return $this->morphTo("imageable"); 
+
+               =In Web
+                    Route::get("photos/{id}/result",function($id){
+
+                         $photo = Photo::findOrFail($id);
+                         return $photo->phototable; 
+                    });
+----
+     =*able_id, *able_type changing practice 
+
+          "articles" table
+               id img cover caption subcaption contnet  price
+
+          "products" table
+               id caption subcaption contnet  price
+
+          "users" table  
+               id username password gender_id
+
+          "comments" table
+               id   messaege       user_id   commentable_id      commentable_type
+               1    hello          3         1                   App\Models\User
+               1    how are you    1         3                   App\Models\User
+               1    good article   2         1                   App\Models\Article
+
+     =Migration
+
+          php artisan make:model Comment -m
+
+          =create_comments_table.php
+               up()
+                    $table->string("message");
+                    $table->integer("user_id")->unsigned();
+                    $table->integer("commentable_id")->unsigned();
+                    $table->string("commentable_type");
+
+          php artisan migrate:status
+          php artisan migrate
+
+     =In Model (User.php)
+
+          public function comments(){
+               // morphMany(relativetable,name);
+               return $this->morphMany(Comment::class,"commentable");
+          }
+
+     =In Model (Article.php)
+
+          public function comments(){
+               // morphMany(relativetable,name);
+               return $this->morphMany(Comment::class,"commentable");
+          }
+
+     =In Model (Comment.php)
+
+          public function commentable(){
+               return $this->morphTo();
+          }
+
+     =In Web 
+          Route::get("articles/{id}/comment",function($id){
+
+               $article = Article::findOrFail($id);
+
+               foreach($article->comments as $comment){
+                    echo $comment->message."<br/>";
+               }
+          });
+
+          Route::get("users/{id}/comment",function($id){
+
+               $user = User::findOrFail($id);
+
+               foreach($user->comments as $comment){
+                    // return $comment."<br/>";
+                    echo $comment->message."<br/>";
+               }
+          });
+
+----------------------------------------------------------------------------
+=>Polymoerphic relationship Many to Many
+
+     "items" table
+          id   name 
+          1    Redbull
+          2    Sponsor
+          3    Babymild
+          4    Dutch Mill
+     
+     "articles" table
+               id img cover caption subcaption contnet  price
+
+     "tags" table
+          id   name
+          1    food
+          2    Beverage
+          3    Cloth
+          4    Insect Killer
+          5    News
+          6    History
+          7    Science
+
+     "taggable" table
+          id   tag_id    taggable_id    taggable_type
+          1    1         4              App\Models\Item
+          1    2         1              App\Models\Item
+          1    2         2              App\Models\Item
+          1    5         1              App\Models\Article
+          1    1         1              App\Models\Article
+
+          * taggable_id = item_id
+          * Items and Article attach tags
+
+     They are mostly used in e-commerce site
+
+     *If you don't know polymorphic relationship
+          "items" table
+          id   name tag_id
+          
+          - it can attach only one tag
+
+          ----
+          Another way
+          "itemtags" table
+               id item_id tag_id
+          - it is only for items
+          - "articletags" table needed to add
+          - this way is very childish
+
+     =Migration
+
+          php artisan make:model Item -m
+               =create_items_table.php
+                    up()
+                         $table->string('name');
+
+
+          php artisan make:model Tag -m
+               =create_tags_table.php
+                    up()
+                         $table->string("name");
+
+          php artisan make:model Taggable -m
+               =create_tags_table.php
+                    up()
+                         $table->integer("tag_id");
+                         $table->integer("taggable_id");
+                         $table->string("taggable_type");
+
+          php artisan migrate:status
+          php artisan migrate
+
+     =In Model (Article.php)
+          public function tags(){
+               // morphedToMany(relatedtable,name);
+               return $this->morphToMany(Tag::class,"taggable");
+          }
+     =In Model (Items.php)
+
+          public function tags(){
+               // morphedToMany(relatedtable,name);
+               return $this->morphToMany(Tag::class,"taggable");
+          }
+
+     =In Model (Tag.php)
+
+          public function articles(){
+               // morphedByMany(relatedtable,name);
+               return $this->morphedByMany(Article::class,"taggable");
+          }
+
+          public function items(){
+               // morphedByMany(relatedtable,name);
+               return $this->morphedByMany(Item::class,"taggable");
+          }
+
+     =In Web
+          Route::get("items/{id}/tag",function($id){
+               $item = Item::findOrFail($id);
+
+               foreach($item->tags as $tag){
+                    echo $tag->name."<br/>";
+               }
+          });
+          // the item is attached to which tags label
+          
+
+          Route::get("tag/{id}/article",function($id){
+               $tag = Tag::findOrFail($id);
+
+               foreach($tag->articles as $article){
+                    echo $article->title."<br/>";
+               }
+          });
+
+          Route::get("tag/{id}/item",function($id){
+               $tag = Tag::findOrFail($id);
+
+               foreach($tag->items as $item){
+                    echo $item->name."<br/>";
+               }
+          });
+          // items include under the title of tag title
+----------------------------------------------------------

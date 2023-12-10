@@ -1,0 +1,637 @@
+=>Form CRUD
+
+=Migration
+
+     php artisan make:model Country -m
+
+     =create_country_table.php
+          up()
+               $table->string("name");
+               $table->string("capital");
+               $table->string("currency");
+               $table->string("content");
+               $table->integer("user_id")->unsigned();
+
+     php artisan migrate:status  
+     php artisan migrate
+
+     =In Model (Country.php)
+          protected $table = "countries";
+          protected $primaryKey = "id";
+          protected $fillable = [
+               "name",
+               "capital",
+               "currency",
+               "content",
+               "user_id"
+          ];
+
+     =In Model (User.php)
+          public function countries(){
+               return $this->hasMany(Country::class);
+          }
+
+     
+     
+     php artisan make:controller CountriesController
+
+     =In Regular Controller
+          public function index(){
+               // show all resources
+          }
+
+          public function create(){
+               // create page for insert data
+               // return view();
+          }
+
+          public function store(){
+               // insert data into database
+          }
+
+          public function edit(){
+               // edit page for update data
+               // return view();
+          }
+
+          public function update(){
+               // update data into database
+          }
+
+          public function delete(){
+               // delete resource
+          }
+     
+     =>Resource Controller
+          php artisan make:controller CountriesController --resource
+
+          (or)
+
+          php artisan make:controller CountriesController -r
+
+          =CountryController.php *automatic provided functions
+
+                /**
+                    * Display a listing of the resource.
+                    */
+               public function index()
+               {
+                    //
+               }
+
+               /**
+                    * Show the form for creating a new resource.
+                    */
+               public function create()
+               {
+                    //
+               }
+
+               /**
+                    * Store a newly created resource in storage.
+                    */
+               public function store(Request $request)
+               {
+                   //
+               }
+
+               /**
+                    * Display the specified resource.
+                    */
+               public function show(string $id)
+               {
+                    // show single post
+               }
+
+               /**
+                    * Show the form for editing the specified resource.
+                    */
+               public function edit(string $id)
+               {
+                    //
+               }
+
+               /**
+                    * Update the specified resource in storage.
+                    */
+               public function update(Request $request, string $id)
+               {
+                    //
+               }
+
+               /**
+                    * Remove the specified resource from storage.
+                    */
+               public function destroy(string $id)
+               {
+                    //
+               } 
+
+     =In Web
+        // * use \App\Http\Controllers\CountriesController;
+          Route::resource("countries",CountriesController::class);
+
+          *Regular controller need many routes name to call each of its method.
+          *Resource controller autoamtically register routes to ease the process of CRUD
+
+          php artisan route:list
+          php artisan route:list --path=countries
+
+          GET|HEAD        countries ........................................................... countries.index › CountriesController@index
+          POST            countries ........................................................... countries.store › CountriesController@store
+          GET|HEAD        countries/create .................................................. countries.create › CountriesController@create
+          GET|HEAD        countries/{country} ................................................... countries.show › CountriesController@show
+          PUT|PATCH       countries/{country} ............................................... countries.update › CountriesController@update
+          DELETE          countries/{country} ............................................. countries.destroy › CountriesController@destroy
+          GET|HEAD        countries/{country}/edit .............................................. countries.edit › CountriesController@edit
+
+     =file create layouts>app.blade.php
+     =folder create view > countries
+     =file create countries.create.blade.php
+     =file create countries.edit.blade.php
+     =file create countries.index.blade.php
+     =file create countries.show.blade.php
+
+
+     =>Form CRUD
+          =>Create a country by inputting form
+               =create.blade.php
+                    *form to get country data
+
+               =In CountriesController - create()
+                    public function create()
+                    {
+                         return view("countries.create");
+                    }
+               =In URL
+                    http://127.0.0.1:8000/countries/create
+                    
+                    *create page display
+
+          =>Store the country
+                    =In create.blade.php
+                         =>store data by route
+                              <form action="/countries" method="POST">
+                              </form>
+                         =>store data by route name
+                              <form action="{{ route('countries.store')}}" method="POST">
+                              </form>
+
+
+                    * submit to store route will get error
+                    *error (419 | PAGE EXPOIRD) because it doesn't meet concept.
+                         csrf = Cross-site request forgery
+                         -sending forged request to make transaction in database
+                              eg. if an attacker build from that are likely to real website and send transaction requests via this form
+                                   the server can not distinguish the form is forged and then execute request 
+                                   finally database transaction successfully and can cause may issues.
+
+               = solution for csrf
+                    laravel have solution for it 
+                         * generating token numbers if the users firstly open the create form via real website 
+                         at the route redirected by form to partically execute the process, it firstly check token and then proceed.
+
+                         * it is very munh like token card system from clinic.
+                         At the booking time, the clinic offer token cards to the patient.
+                         At the consultation time, the clinic check token card return from patient.
+                    
+                    =In create.blade.php
+                         <form action="/countries" method="POST">
+                              = Method 1
+                                   {{ csrf_field() }}
+
+                              = Method 2
+                                   <input type="hidden" name="_token" value="{{csrf_token()}}" />
+                              
+                              = Method 3 (easiest way/recommended method)
+                                   @csrf
+                         </form>
+                    
+               =In CountriesController - store()
+                    public function store(Request $request)
+                    {
+                         return $request->all(); 
+                              - {"_token":"1QJlpvIGVDwcPYDgjnlSWwjcNCo1CLP2GpSfRMHO","name":"Myanmar","capital":"Napyitaw","currency":"mmk","user_id":"1","content":"hello"}
+                              - to get all the form field
+                              - $request know all the name attribute of form view
+                              - token number is generated based on type of browser, time and date of the server
+                              - * If browser refresh, token nuber did not change 
+                    
+                         *use App\Models\Country;
+                         Country::create([
+                              "name" => $request["name"],
+                              "capital" => $request["capital"],
+                              "currency" => $request["currency"],
+                              "content" => $request["content"],
+                              "user_id" => $request["user_id"],
+                         ]);
+                         return redirect(route("countries.index"));
+
+                         - * columnname => formname
+                         - data successfully store in "countries" table
+
+                         
+                         $country = new Country();
+                         $country->name = $request["name"];
+                         $country->capital = $request["capital"];
+                         $country->currency = $request["currency"];
+                         $country->content = $request["content"];
+                         $country->user_id = $request["user_id"];
+                         $country->save();
+                         return redirect(route("countries.index"));
+
+                         
+                         Country::create($request->all());
+                         return redirect(route("countries.index"));
+
+                    }
+
+                    =Beware route (In create.blade.php)
+                         <form action="countries" method="POST">
+                         
+                         *error (The POST method is not supported for route countries/countries. Supported methods: GET, HEAD, PUT, PATCH, DELETE.)
+                         - forward sl must be added 
+                         - if it is not added, it goes to index route (countries.index)                         
+
+                    =In create.blade.php
+                         <a href="{{route('countries.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+
+          =>List Countries
+               =In CountriesController - index()
+                    public function index()
+                    {
+                         // return "I am index page";
+
+                         $countries = Country::all();
+                         return view("countries.index",compact("countries"));
+                    }
+
+               =In index.blade.php
+
+                         @extends("layouts.app")
+
+                         @section("title","Index Page")
+
+                         @section("content")
+
+                              <h1>Index Page</h1>
+
+                              <div class="col-md-12 mb-3">
+                                   <a href="{{route('countries.create')}}" class="btn btn-primary btn-sm rounded-0">Create New Country</a>
+                              </div>
+                              <table id="mytable" class="table table-sm table-hover border">
+
+                                   <thead>
+                                        <th>No</th>
+                                        <th>Name</th>
+                                        <th>Capital</th>
+                                        <th>Currency</th>
+                                        <th>User_id</th>
+                                        <th>Created At</th>
+                                        <th>Updated At</th>
+                                        <th>Action</th>
+                                   </thead>
+
+                                   <tbody>
+                                        @foreach($countries as $idx=>$country)
+                                        <tr>
+                                             <td>{{++$idx}}</td>
+                                             <td>
+                                                  <a href="{{route('countries.show',$country->id)}}"></a>
+                                                  {{$country->name}}
+                                             </td>
+                                             <td>{{$country->capital}}</td>
+                                             <td>{{$country->currency}}</td>
+                                             <td>{{$country->user_id}}</td>
+                                             <td>{{$country->created_at}}</td>
+                                             <td>{{$country->updated_at}}</td>
+                                             <td>
+                                                  <a href="#" class="text-info"><i class="fas fa-pen"></i></a>
+                                                  <a href="#" class="text-danger"><i class="fas fa-trash-alt"></i></a>
+                                             
+                                             </td>
+                                        </tr>
+                                        @endforeach
+                                   </tbody>
+
+                              </table>
+
+
+                         @endsection
+               =In URL
+                    http://127.0.0.1:8000/countries/
+          
+          =>Show Single Country
+
+               =In CountriesController - show()
+                    public function show(string $id)
+                    {
+                         $country = Country::findOrFail($id);
+                         return view("countries.show",["country"=>$country]);
+                    }
+
+               =In show.blade.php     
+                    @extends("layouts.app")
+
+                    @section("title","Show Page")
+
+                    @section("content")
+
+                         <h1>Show Page</h1>
+                         <div class="col-md-12">
+                              <ul class="list-group">
+                                   <li class="list-group-item active">Country Name = {{$country->name}}</li>
+                                   <li class="list-group-item">Capital Name = {{$country->capital}}</li>
+                                   <li class="list-group-item">Currency Unit = {{$country->currency}}</li>
+                                   <li class="list-group-item">Content  = {{$country->content}}</li>
+                              </ul>
+
+                              <a href="{{route('countries.index')}}" class="btn btn-secondary rounded mt-3">Back</a>
+                         </div>
+
+
+                    @endsection
+
+               =In Route
+                    http://127.0.0.1:8000/countries/1
+
+               - to display each country like in new website
+                    (each article can be watched by clicking the link)
+
+                    =In index.blade.php
+                         <td>
+                              <a href="{{route('countries.show',$country->id)}}">{{$country->name}}</a>
+                         </td>
+
+                         *route(route,parameters) 
+                              -route parameter can be given as second parameter
+
+          =>Edit Single Country
+               =In CountriesController - edit()
+
+                    public function edit(string $id)
+                    {
+                         $country = Country::findOrFail($id);
+                         return view("countries.edit")->with("country",$country);
+                    }         
+               
+               =In index.blade.php
+                    <td>
+                         <a href="{{route('countries.edit',$country->id)}}" class="text-info me-3"><i class="fas fa-pen"></i></a>
+                         <a href="{{route('countries.destroy',$country->id)}}" class="text-danger"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+
+               =In edit.blade.php
+                    @extends("layouts.app")
+
+
+                    @section("title","Create Page")
+
+                    @section("content")
+
+                         <h1>Edit Page</h1>
+
+                         <form action="{{ route('countries.store')}}" method="POST">
+                              @csrf
+
+                              <div class="row">
+                                   <div class="col-md-6 mb-3">
+                                        <label for="name">Country Name</label>
+                                        <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" value="{{$country->name}}"/>
+                                   </div>
+
+                                   <div class="col-md-6 mb-3">
+                                        <label for="capital">Capital</label>
+                                        <input type="text" name="capital" id="capital" class="form-control form-control-sm rounded-0" value="{{$country->capital}}"/>
+                                   </div>
+
+                                   <div class="col-md-6 mb-3">
+                                        <label for="currency">Currency</label>
+                                        <input type="text" name="currency" id="currency" class="form-control form-control-sm rounded-0" value="{{$country->currency}}"/>
+
+                                   </div>
+
+                                   <div class="col-md-6 mb-3">
+                                        <label for="user_id">User ID</label>
+                                        <input type="number" name="user_id" id="user_id" class="form-control form-control-sm rounded-0" value="{{$country->user_id}}"/>
+                                   </div>
+
+                                   <div class="col-md-12 mb-3">
+                                        <label for="content">Content</label>
+                                        <textarea name="content" id="content" class="form-control rounded-0" rows="3">{{$country->content}}</textarea>
+                                   </div>
+
+                                   <div class="col-md-12">
+                                        <div class="d-flex justify-content-end">
+                                             <a href="{{route('countries.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                                        <button type="submit" class="btn btn-secondary btn-sm rounded-0">Submit</button>
+                                        </div>
+                                   </div>
+                              </div>
+                         </form>
+
+
+                    @endsection
+
+               =In Route
+                    http://127.0.0.1:8000/countries/1/edit
+
+          =>Update Single Country
+
+               =In edit.blade.php
+
+                    *form action route is still store route.
+                    if submit, it will insert new country.
+
+                    <form action="{{ route('countries.update',$country->id)}}" method="POST">
+                    *error() The POST method is not supported for route countries/4. Supported methods: GET, HEAD, PUT, PATCH, DELETE.
+
+                    <form action="{{ route('countries.update',$country->id)}}" method="PUT">
+                    - It will go Show Page
+                         http://127.0.0.1:8000/countries/4?name=Myanmar&capital=Napyitaw&currency=mmk&user_id=1&content=hello
+               
+               =In CountriesController - update()
+                    public function update(Request $request, string $id)
+                    {
+                         Country::findOrFail($id)->update([
+                              "name" => $request["name"],
+                              "capital" => $request["capital"],
+                              "currency" => $request["currency"],
+                              "content" => $request["content"],
+                              "user_id" => $request["user_id"],
+                         ]);
+
+                         return redirect(route("countries.index"));
+                    }
+               
+               =In edit.blade.php
+                    <form action="{{ route('countries.update',$country->id)}}" method="PATCH">
+                    *It will go Show Page again.
+
+                    =update data by route name
+                         <form action="{{ route('countries.update',$country->id)}}" method="POST">
+                              @csrf
+
+                              {{ method_field("PUT") }}
+                              or
+                              @method("PATCH")
+                    
+                    =update data by route
+                         <form action="/countries/{{$country->id}}" method="POST">
+                         
+                    *method can be given at both update and create
+                    =In create.blade.php
+                         @method("POST")
+
+          =>Delete Single Country
+               
+               =In CountriesController - update()
+                    public function destroy(string $id)
+                    {
+                         $country = Country::findOrFail($id);
+                         $country->delete();
+                         return redirect(route("countries.index")); 
+                    }
+               
+               = In index.blade.php
+                    <td>
+                         <a href="{{route('countries.edit',$country->id)}}" class="text-info me-3"><i class="fas fa-pen"></i></a>
+                         <a href="{{route('countries.destroy',$country->id)}}" class="text-danger"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+
+                    *it will go to Show Page
+                         http://127.0.0.1:8000/countries/5  
+                    It is because laravel modern version do not allow to delete the item like this.
+
+               =Method 1
+                    = In Web.php
+                         Route::resource("countries",CountriesController::class)->except("destroy");
+                         Route::get("countries/delete/{id}",[CountriesController::class,"destroy"])->name("countries.delete");
+
+                    =In index.blade.php
+                         <td>
+                              <a href="{{route('countries.edit',$country->id)}}" class="text-info me-3"><i class="fas fa-pen"></i></a>
+                              <a href="{{route('countries.delete',$country->id)}}" class="text-danger"><i class="fas fa-trash-alt"></i></a>
+                         </td>    
+               =Method 2
+                    =In Web.php
+                       Route::resource("countries",CountriesController::class);
+
+                    =In index.blade.php
+                    <td>
+                         <a href="{{route('countries.edit',$country->id)}}" class="text-info me-3"><i class="fas fa-pen"></i></a>
+                         {{-- <a href="{{route('countries.delete',$country->id)}}" class="text-danger"><i class="fas fa-trash-alt"></i></a> --}}
+                    
+                         
+                         <form action="{{ route('countries.destroy',$country->id) }}" method="POST">
+                              @csrf
+                              @method("DELETE")
+                              <button type="submit" class="btn btn-danger btn-sm rounded-0"><i class="fas fa-trash-alt"></i></button>
+
+                         </form>
+                    </td>
+                    *It has disadvantage. Two buttons (edit,delete) is not side by side. Delete button reach under edit button.
+
+                    =delete data by route name
+                         {{-- {{ route('countries.destroy',$country['id']) }} --}}
+                         {{-- {{ route('countries.destroy',$country['id']) }} --}}
+                     =delete data by route
+                         {{-- /countries/{{$country->id}} --}}
+                         {{-- countries/{{$country['id']}} --}}
+                    =delete data by url
+                         {{-- {{url('/countries',$country->id)}} --}}
+                         {{-- {{url('countries',$country['id'])}} --}}
+               =Redirect
+                    =In CountriesController - update()
+                    public function destroy(string $id)
+                    {
+                         $country = Country::findOrFail($id);
+                         $country->delete();
+                         //return redirect(route("countries.index")); 
+                         //return redirect()->route("countries.index"); 
+
+                         return redirect()->back();
+                    }
+
+                    *back() go to the preivous route
+                    -it depend on the entry way to the target point
+                    
+                    ABCD
+                    A - D (D back is A)
+                    B - A - C - D (D back is C)
+
+               =Javascript Alert Box Delete 
+                    =In app.blade.php
+                              <!-- jQuery js1 -->
+                              <script src="https://code.jquery.com/jquery-3.7.1.min.js" type="text/javascript"></script>
+                         </body>
+
+                    =In index.blade.php
+                         @section("content")
+                              <script type="text/javascript">
+                                   //jQuery code
+                              </script>
+                         @endsection
+
+                         *will get error because of code flow
+                              jQuery code use before jQuery file declaration
+
+                              <!-- start content -->
+                                   <script type="text/javascript">
+                                        //jQuery code
+                                   </script>
+                              <!-- end content -->
+                                   <!-- jQuery js1 -->
+                                   <script src="https://code.jquery.com/jquery-3.7.1.min.js" type="text/javascript"></script>
+                    ----------------------------------------------------------------------------------------------------------------
+                    =>Delete By jQuery,class
+                         =In app.blade.php
+                                   @yield("script")
+                              </body>
+
+                         =In index.blade.php
+                              <form class="formdelete" action="{{url('countries',$country['id'])}}" method="POST">
+
+
+                              @section("script")
+                                   <script type="text/javascript">
+                                        $(document).ready(function(){
+                                             $(".formdelete").on("submit",function(){
+                                                  if(confirm("Are you sure you want to delete if?")){
+                                                       return true;
+                                                  }else{
+                                                       return false;
+                                                  }
+                                             });
+                                        });
+                                   </script>
+                              @endsection
+                              
+                              *confirm, true = continue form submit
+                              confirm, false = stop form submit
+
+                    =>Delete By Javascript,id
+                         =In index.blade.php
+                              <!-- new column -->
+                              <thead>
+                                   .
+                                   .
+                                   .
+                                   .
+                                   <th>Drop</th>
+                              </thead>
+                              
+                              <!-- new button -->
+                              <td>
+                                   <a href="{{route('countries.edit',$country->id)}}" class="text-info me-3"><i class="fas fa-pen"></i></a>
+                                   <a href="#" class="text-danger" onclick="event.preventDefault();document.getElementById('formdelete-{{$country->id}}').submit();"><i class="fas fa-trash-alt"></i></a>
+                              </td>
+                              <form id="formdelete-{{$country->id}}" action="{{ route('countries.destroy',$country->id) }}" method="post">
+                                   {{ csrf_field() }}
+                                   {{ method_field('DELETE') }}
+                              </form>
+
+                              *each a tag for each form
+                              *event.preventDefault(); is optional but for future modification it should be added.
+                              - edit btn an delete btn display side by side
+

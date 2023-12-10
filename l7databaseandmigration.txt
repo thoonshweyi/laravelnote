@@ -1,0 +1,473 @@
+=>Migration
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=exerciseone
+DB_USERNAME=root
+DB_PASSWORD=
+
+
+mysql -u root -DB_PASSWORD
+mydatabasep@ssword
+
+status
+
+CREATE DATABASE exerciseone;
+
+SHOW DATABASES;
+----------------------------------
+
+database > migrations
+
+=>tables to update db server
+
+php artisan migrate
+
+=>Create New table
+     =Syntax
+          php artisan make:migration create_tablename_table
+
+     php artisan make:migration create_students_table
+
+
+=>Available Column Types
+$table->id();
+$table->bigIncrements('id');
+$table->increments('id');
+
+$table->bigInteger('id');
+$table->tinyInteger('id');
+$table->unsignedInteger('id');
+$table->unsignedBigInteger('id');
+$table->smallInteger('votes');
+$table->binary('photo');
+
+$table->boolean('confirmed');
+
+$table->char('name',30);
+$table->string('name',100);
+$table->text('description');
+$table->tinytext('notes');
+$table->mediumtext('description');
+$table->longtText('post');
+
+$table->time("bookingtime");
+$table->date("created_at");
+$table->year("birthyear");
+$table->timestamps(); // system auto
+$table->timestamp(); // custom
+
+$table->decimal("amount",precision=8,scale=2);
+$table->float("measure",precision=8,scale=2);
+
+$table->enum("payment",["visa","mpu","cod","kpay","wave"]);
+$table->json("multiphones");
+
+=>Ckeck Migration Status
+php artisan migrate:status
+
+=>Undo migration by step 
+     php artisan migrate:rollback
+
+     * table must be rollback to make changes (rollback = down from the server)
+
+     =Wanted to add 'address' column to "students" table 
+     =create_students_table.php
+          =add "address" column after "phonenumber" 
+               up()
+               $table->string("address");
+     =php artisan migrate          // Nothing to migrate.
+     =php artisan migrate:rollback // "students" table down
+     =View "migrations" tables     // There is no create_students_table
+     =php artisan migrate:status   // create_students_table PENDING 
+     =php artisan migrate          // students table up
+     =View "students" table        // 'address' column is added
+     =php artisan migrate:rollback // "students" table down
+     =php artisan migrate:rollback // base 4 tables down
+     =php artisan migrate          // base 4 tables + "students" table up to server
+
+php artisan make:migration create_workers_table --create="workers"
+
+php artisan make:migration create_staffs_table --create="staffs"
+php artisan make:migration create_employees_table --create="employees"
+
+$table->id();
+$table->string("fullname");
+$table->string("phonenumber");
+$table->timestamps();
+
+5 tables
+1 tables
+2 tables
+
+=>Undo migration by step (selected table count to local)
+php artisan migrate:rollback --step=2
+php artisan migrate:rollback --step=3
+     * tables down as specific number not batch number
+
+=php artisan migrate:rollback --step=4
+=php artissan migrate
+=php artisan migrate:rollback --step=1
+
+
+* rollback must not be made after inserting data
+* rollback should only make if there is no inserting data and collumn need to add
+* rollback --step should be make in this case 
+     1table (data inserted)
+     2table (data inserted)
+     3table (data not inserted and column need to add)
+
+     4table (column need to add)
+
+=>Check before rollback table list
+     php artisan migrate:rollback --pretend
+     * --pretend is very useful to preview the tables that are going to down if we call rollback next time
+     * --pretend solve blindly calling :rollback  
+
+     =php artisan migrate:rollback --pretend      // staffs, workers, students will down
+     =php artisan migrate:rollback      // 3 tables
+     =php artisan migrate     // up 4 tables
+     =Add data into "employees" table from phpmyadmin
+          1 Aung Aung 011111
+          2 Su Su 022222
+     =php artisan migrate:rollback --pretend      // employees,staffs, workers, students will down  
+     =php artisan migrate:rollback
+     =php artisan migrate          // up 4 tables
+     =View data in "employees" tables        // There is no data
+
+=>Delete all tables
+     php artisan migrate:reset
+
+     * :reset is very danger and more danger than :rollback
+     * :rollback only delete last migrated tables
+       :reset delete all tables from database
+
+     * Real World Project have 2 platforms
+          1.Development Version
+          2.Operation Version (On Server)
+
+          Database backups are also taken.
+
+          So we don't need to worry too much about that mistakenly deleted tables.
+          But we need to careful however our data is safely backukp.
+
+
+     =Add data into "employees" table from phpmyadmin
+          1    Su Su     011111
+          2    Aye Aye   022222
+     =php artisan migrate:reset         // all 8 tables down
+     =php artisan migrate
+     =View data in "employees" tables        // There is no data
+     =Add data into "employees" table from phpmyadmin
+          1    Su Su     011111
+          2    Aung Aung 022222
+     
+
+php artisan make:migration create_shoppers_table --create="shoppers"
+=php artisan migrate
+
+=>Delete all datas (auto rollback and auto migrate)
+     php artisan migrate:refresh
+
+     * Rolling back migrations 
+       Running migrations
+
+=>Delete all datas (auto rollback and auto migrate) (selected table count to local by DESC)
+     php artisan migrate:refresh --step=2
+
+     * delete specific tables from the last created talble and auto migrate
+
+
+     =Add data into "shoppers" table from phpmyadmin   
+          1    su su       11111
+     =Add data into "employees" table from phpmyadmin   
+          1    nu nu       22222
+     =Add data into "staffs" table from phpmyadmin
+          1    aye aye     33333
+     =Add data into "workers" table from phpmyadmin
+          1    tun tun     44444
+     =Add data into "students" table from phpmyadmin
+          1    hla hla     55555     
+     =View "shoppers" and "employees" tables // There is no data
+     =View "students", "workers", "staffs" tables // Data is still exist
+
+=>Add New Column
+     =Syntax
+          php artisan make:migration add_columnname_to_tablename_table
+
+     php artisan make:migration add_city_to_shoppers_table
+     php artisan make:migration add_city_to_shoppers_table --table=shoppers
+     =add_city_to_shoppers_table.php
+          up()
+          $table->string("city");
+     php artisan migrate
+     ------------------------------------------------------
+
+     =Add data into "shoppers" table from phpmyadmin   
+          1    aung aung      11111
+          2    su su          22222
+     =Wanted to add 'city' column       // add from phpmyadmin will get errors
+     =create_shoppers_table.php
+          up()
+          $table->string("city");
+     =php artisan migrate
+     =View "shoppers" tables // There is no 'city' column
+     =php artisan migrate:rollback --pretend
+     =php artisan migrate:rollback      // add_city_to_shoppers_table is down
+     =add_city_to_shoppers_table.php
+          up()
+          $table->string("city");
+     =php artisan migrate
+     = View "shoppers" tables // 'city' column is added as very last column
+     
+     =>Sort Column
+          php artisan migrate:rollback --pretend
+          php artisan migrate:rollback 
+          =add_city_to_shoppers_table.php
+               up()
+               $table->string("city")->after("phonenumber");
+          ------------------------------------------------------
+
+          =php artisan migrate:rollback --pretend
+          =php artisan migrate:rollback      // add_city_to_shoppers_table is down
+          =add_city_to_shoppers_table.php
+               up()
+               //  $table->string("city")->after("phonenumbersss"); // will get error
+               $table->string("city")->after("phonenumber");
+          =php artisan migrate // *error (Column already exist:)
+          =php artisan migrate:reset
+          =php artisan migrate // 'city' column is added after "phonenumber" but there is no data
+
+     =>Prevent Error ( Column already exists: )
+
+          *up() function run when make migrations.
+          *down() function run when rollback migrations. 
+
+          =php artisan make:migration add_city_to_employees_table --table=employees
+          =add_city_to_employees_table.php
+               up()
+               $table->string("city")->after("phonenumber");
+          =php artisan migrate:rollback --pretend // add_city_to_employees_table down
+          =php artisan migrate:rollback
+          =php artisan migrate:status             // add_city_to_employees_table PENDING
+          =View "employees" table                 // 'city' column still exist
+          =php artisan migrate                    // Error ( Column already exists: )
+          =php artisan migrate:reset
+          =php artisan migrate
+
+          =php artisan make:migration add_city_to_staffs_table --table=staffs
+          =add_city_to_staffs_table.php
+               up()
+               $table->string("city")->after("phonenumber");
+          =add_city_to_staffs_table.php
+               down()
+               $table->dropColumn("city");
+          =php artisan migrate       
+          =View "employees" table                 // 'city' column added
+          =php artisan migrate:rollback --pretend // add_city_to_staffs_table will down
+          =php artisan migrate:rollback
+          =php artisan migrate:status // add_city_to_staffs_table PENDING
+          =View "employees" table                 // 'city' column dropped
+          =php artisan migrate       
+
+=>Drop Columns
+     php artisan make:migration remove_id_to_students_table --table=students
+
+     =remove_id_to_students_table.php
+          up()
+          $table->dropColumn("id");
+     =php artisan migrate
+     =View "students" table                 // 'id' column dropped
+     =php artisan migrate:rollback --pretend // remove_id_to_students_table will down
+     =php artisan migrate:rollback
+     =php artisan migrate:status             // remove_id_to_students_table PENDING
+     =View "students" table                 // There is no 'id' column
+     =php artisan migrate                    // Error (Can't DROP COLUMN `id`;)
+     =php artisan migrate:reset
+     =php artisan migrate
+
+     =>Prevent Error ( Can't DROP COLUMN `id`; )
+          php artisan make:migration remove_id_to_workers_table --table=workers
+
+          =remove_id_to_workers_table.php
+               up()
+               $table->dropColumn(["id","phonenumber"]);
+
+               down()
+               $table->id();
+               $table->string("phonenumber")->after("fullname");
+          =php artisan migrate
+          =View "workers" table                 // 'id', 'phonenumber' column dropped
+          =php artisan migrate:rollback --pretend // remove_id_to_workers_tabl will down
+          =php artisan migrate:rollback
+          =View "workers" table                 // There is "phonunumber" column after "fullnaame" abd 'id' column as very last column
+          =php artisan migrate
+
+          ----------------------------------------------------------
+          php artisan make:migration remove_id_to_staffs_table --table=staffs
+
+          =remove_id_to_staffs_table.php
+               Note:: hasColumn(table,columnname)
+
+               up()
+               if(Schema::hasColumn("staffs","id")){
+                    Schema::table('staffs', function (Blueprint $table) {
+                         $table->dropColumn("id");
+                    });
+               }
+          =php artisan migrate
+          =View "staffs" table                 // 'id' column dropped
+          =php artisan migrate:rollback --pretend // remove_id_to_staffs_tabl will down
+          =php artisan migrate:rollback
+          =View "staffs" table                 // There is no 'id' column
+          =php artisan migrate                    // No Error
+
+
+
+          =php artisan migrate:rollback --pretend // remove_id_to_staffs_tabl will down
+          =php artisan migrate:rollback
+          =remove_id_to_staffs_table.php
+               down()
+               $table->id()->first();
+          =php artisan migrate
+          =View "staffs" table                 // 'id' column dropped
+          =php artisan migrate:rollback --pretend // remove_id_to_staffs_tabl will down
+          =php artisan migrate:rollback
+          =View "staffs" table                 // There is 'id' column as very first column
+
+=>Multi add column / drop column
+     php artisan make:migration add_columns_to_shoppers_table
+     php artisan make:migration remove_columns_to_students_table --table=students
+
+=>Rename Column 
+     php artisan make:migration rename_students_column --table=students
+ 
+
+     *renameColumn(from,to)
+
+
+     =Wanted to change "phonenumber" column to "phone"
+     =Wanted to change "address" column to "city"
+     =rename_students_column.php
+          up()
+          $table->renameColumn("phonenumber","phone");
+          $table->renameColumn("address","city");
+
+          down()
+          $table->renameColumn("phone","phonenumber");
+          $table->renameColumn("city","address");
+     =php artisan migrate
+     =View "students" table                 // 'phonenumber', 'address' column change to 'phone' 'city'
+     =php artisan migrate:rollback --pretend // remove_id_to_staffs_tabl will down
+     =php artisan migrate:rollback
+     =View "students" table                 // 'phonenumber', 'address' column change to 'phonenumber' 'address'
+     =php artisan migrate
+
+=>Rename table
+     php artisan make:migration rename_employees_to_customers_table --table=employees
+
+     =Wanted to change "employees" table "customers"
+     =rename_employees_to_customers_table.php
+          up()
+          Schema::rename("employees","customers");
+
+
+          down()
+          Schema::rename("customers","employees");
+
+     =php artisan migrate
+     =View "employees" table                 // "employees" table change to "customers" table
+     =php artisan migrate:rollback --pretend // rename_employees_to_customers_table will down
+     =php artisan migrate:rollback
+     =View "customers" table                 // "customers" table change to "employees" table
+     =php artisan migrate
+
+=>Default Value
+
+     php artisan make:migration create_books_table --create="books"
+
+     =create_books_table.php
+          use Illuminate\Support\Facades\DB;
+
+          up()
+          $table->increments('id');
+          $table->string("title");
+          $table->tinyInteger("status")->default("1");
+          $table->enum("copyright",['0'],['1'])->default("0");
+          $table->timestamp("created_at")->default(DB::raw("CURRENT_TIMESTAMP")); // timestamp not include s
+          $table->timestamp("updated_at")->default(DB::raw("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"));
+     =View "books" table              // "books" table created
+     -----------------------------------------------------------
+
+     =php artisan make:migration create_profiles_table --create="profiles"
+     =create_profiles_table.php
+          up()
+          $table->increments('id');
+          $table->string("givenname",100);
+          $table->string("familyname",100);
+          $table->enum("gender",array("male","female","unisex"))->default("female");
+          $table->text("bio");
+          $table->unsignedBigInteger('user_id');
+          $table->timestamp("created_at")->useCurrent();
+          $table->timestamp("updated_at")->nullable()->useCurrentOnUpdate();
+     =View "profiles" table              // "profiles" table created
+
+
+     *useCurrent()            // insert current time
+     *useCurrentOnUpdate()    // insert current time on update
+
+=>Creating Indexes
+$table->string("email")->unique();
+
+php artisan make:migration create_authors_table --create="authors"
+php artisan make:migration create_types_table --create="types"
+php artisan make:migration create_posts_table --create="posts"
+
+
+=>Foreign Key Constraints
+Method 1
+$table->unsignedBigInteger('user_id');
+$table->foreign("user_id")->references("id")->on("users")
+
+Method 2
+$table->foreignId("user_id")->constrained("users");
+
+=create_authors_table.php
+up()
+$table->id();
+$table->strig("name");
+$table->timestamps();
+
+=create_types_table.php
+up()
+$table->id();
+$table->strig("name");
+$table->timestamps();
+
+=create_posts_table.php
+up()
+Schema::create('posts', function (Blueprint $table) {
+     $table->id();
+     $table->string("title")->unique();
+     $table->text("description");
+
+     $table->unsignedBigInteger("user_id");
+     $table->foreign("user_id")->references("id")->on("users")->onUpdate("cascade")->onDelete("cascade");
+            
+     $table->foreignId("author_id")->constrained("authors")->onUpdate("cascade")->onDelete("cascade");
+
+     $table->year("year");
+
+     $table->unsignedBigInteger("type_id");
+     $table->foreign("type_id")->references("id")->on("types")->onUpdate("cascade")->onDelete("cascade");
+
+     $table->timestamps();
+});
+
+
+
+=>Data Insert From Route
+
+
+2DB
