@@ -1,0 +1,435 @@
+=>DLT Project
+
+     =move file
+          bcj3 > admintemplatetwo > assets
+          exercisetwo > public
+
+          bcj3 > admintemplatetwo > css, js
+          exercisetwo > public > assets > disc (disc folder created)
+
+     =Dashboard page
+          default dashboard page to customized dashboards page 
+
+          php artisan make:controller DashboardsController -r
+     
+     =In DashboardsController.php
+
+     =In Web
+          Route::get("/dashboards",[DashboardsController::class,'index'])->name("dashboard.index");
+          *use App\Http\Controllers\DashboardsController;
+
+     =In View
+          dashboards >
+          =create index.blade.php
+
+          =create adminindex.blade.php
+          =create adminheader.blade.php (<!DOCTYPE HTML - <body>)
+          =create adminfooter.blade.php (</body> - </html>)
+          =create adminleftsitebar.blae.php (Start -End Left Navbar)
+
+
+          =In adminindex.blde.php
+               @include("layouts.adminheader")
+
+               <div>
+                    <!-- Start Site Setting -->
+                    <div id="sitesettings" class="sitesettings">
+                         <div class="sitesettings-item"><a href="javascript:void(0);" id="sitetoggle" class="sitetoggle"><i class="fas fa-cog ani-rotates"></i></a></div>
+                    </div>
+                    <!-- End Site Settin -->
+
+                    <!-- Start Left Side Bar -->
+                    @include("layouts.adminleftsidebar")
+                    <!-- End Left Side Bar -->
+
+                    <!-- Start Content Area -->
+                    @yield("content")
+                    <!-- End Content Area -->
+               </div>
+         
+               @include("layouts.adminfooter")
+
+     
+          =In index.blade.php
+               @extends("layouts.adminindex")
+
+               @section("content")
+                    <!-- Start Content Area -->
+                    <section>
+                         ....
+                    </section>
+                    <!-- End Content Area -->
+               @endsection
+
+          =In adminheader.blade.php
+               <!-- Application Name -->
+               <title>{{ config('app.name') }}</title>
+               <!-- fav icon -->
+               <link href="{{ asset('assets/img/fav/favicon.png') }}" rel="icon" type="image/png" sizes="16x16"/>
+               <!-- jqueryui css1 js1 -->
+               <link href="{{asset('./assets/libs/jquery-ui-1.13.2.custom/jquery-ui.min.css')}}" rel="stylesheet" type="text/css">
+               <!-- custom css css1 -->
+               <link href="{{ asset('assets/disc/css/style.css') }}" rel="stylesheet" type="text/css"/>
+          
+               <!-- Extra CSS -->
+               @yield('css')
+
+               =.env
+                    APP_NAME="DLT Project"
+          =In adminfooter.blade.php
+               <!-- jqueryui css1 js1 -->
+               <script src="{{asset('./assets/libs/jquery-ui-1.13.2.custom/jquery-ui.min.js')}}"></script>
+               <!-- custom js js1 -->
+               <script src="{{ asset('assets/disc/js/app.js') }}" type="text/javascript"></script>
+
+          
+     =>Display Authenticated user name
+          =In app > Provider > AppServiceProvider.php
+               public function boot(): void
+               {
+                    View::composer('*',function($view){
+                         $view->with("userdata",Auth::user());
+                    });
+               }
+               *use Illuminate\Support\Facades\View;
+               *use Illuminate\Support\Facades\Auth;
+
+          =In adminleftsidebar.blade.php
+               <span class="text-muted small me-2">{{ $userdata["name"] }}</span>
+
+     =>After login/register Redirect
+          app > Providers > RouteServiceProvider.php
+
+               // public const HOME = '/dashboard';
+               public const HOME = '/dashboards';
+          
+          *user is redirectd to dashboards after sucessful authentication.
+
+     =create filder students >
+     =index.blade.php
+     =create.blade.php
+
+     =>Sticky Form
+          -When validation error occur, all form field is empty. To protect the user from repeatedly filling the field.
+          -get the previous filled value if error occur
+               old('inputname')
+          
+          =In create.blade.php
+               <input type="text" name="firstname" id="firstname" class="form-control form-control-sm rounded-0" placeholder="Enter First name" value="{{ old('firstname') }}"/>
+               <textarea name="remark" id="remark" class="form-control rounded-0" rows="5" placeholder="Enter Remark">{{ old('remark')}}</textarea>
+
+     =>Limiting text length
+          =In index.blade.php
+               <td>{{Str::limit($student->remark,10)}}</td>
+
+     =>Formattng date time (laravel)
+          =In index.blade.php
+               <td>{{ $student->created_at->format('d M Y') }}</td>
+               <td>{{ $student->updated_at->format('d M Y') }}</td>
+
+     =>Delete Best Practice 
+          =In index.blade.php
+                    <td>
+                         <a href="{{ route('students.edit',$student->id) }}" class="text-info"><i class="fas fa-pen"></i></a>
+                         <!-- <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$student->id}}"><i class="fas fa-trash-alt"></i></a> -->
+                         <!-- <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a> -->
+                         <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$student->regnumber}}"><i class="fas fa-trash-alt"></i></a>
+                    
+                    </td>
+                    ....
+                    <!-- <form id="formdelete-{{ $student->id }}" class="" action="{{route('students.destroy',$student->id)}}" method="POST"> -->
+                    <!-- <form id="formdelete-{{ $idx }}" class="" action="{{route('students.destroy',$student->id)}}" method="POST"> -->
+                    <form id="formdelete-{{ $student->regnumber }}" class="" action="{{route('students.destroy',$student->id)}}" method="POST">
+                         @csrf
+                         @method("DELETE")
+                    </form>
+
+               @section("scripts")
+                    <script type="text/javascript">
+                         $(document).ready(function(){
+                              $(".delete-btns").click(function(){
+                                   // console.log('hay');
+                         
+                                   var getidx = $(this).data("idx");
+                                   // console.log(getidx);
+
+                                   if(confirm(`Are you sure !!! you want to Delete ${getidx} ?`)){
+                                        $('#formdelete-'+getidx).submit();
+                                        return true;
+                                   }else{
+                                        false;
+                                   }
+                              });
+                         });
+                    </script>
+               @endsection
+
+          -Comfirm user to delete this student id (it is not very user-friendly. It can be complex).
+          -Comfirm user to delete this current number or registration number (it is secretly delete the student id in background).
+
+     =>user_id, status_id join
+          =In Model (Student.php)
+               public function user(){
+                    return $this->belongsTo("App\Models\User");
+               }
+
+               public function status(){
+                    // return $this->belongsTo(Status::class); // send all column
+                    // return $this->belongsTo(Status::class)->select("name"); // send single column
+                    return $this->belongsTo(Status::class)->select(["id","name","slug"]); // send multi column
+               }
+
+          =In index.blade.php
+               <td>{{ $student->status->name }}</td>
+               <td>{{ $student->user["name"] }}</td>
+          =In show.blade.php
+               <i class="fas fa-user fa-sm"></i> <span>{{$student["user"]["name"]}}</span>
+
+          
+          *show user name and status name by joining the tables
+
+     =>Formattng date time (php)
+          =In show.blade.php
+               <i class="fas fa-calendar-alt fa-sm"></i> <span>{{date('d M Y',strtotime($student->created_at))}} {{date('h:i:s A',strtotime($student->created_at))}}</span>
+               <br/>
+               <i class="fas fa-edit fa-sm"></i> <span>{{date('d M Y h:i:s A',strtotime($student->updated_at))}}</span>
+
+     =>Setting server timezone
+          config > app.php
+               'timezone' => 'Asia/Yangon',
+
+     =>Update & Validate
+          public function update(Request $request, string $id)
+          {
+               $this->validate($request,[
+                    // "regnumber" => "required|unique:students,regnumber",
+                    "regnumber" => "required|unique:students,regnumber,".$id,
+                    "firstname"=>"required",
+                    "lastname"=>"required",
+                    "remark" => "max:1000"
+               ]);
+
+               $user = Auth::user();
+               $user_id = $user["id"];
+
+               $student = Student::findOrFail($id);
+               $student->regnumber = $request["regnumber"];
+               $student->firstname = $request["firstname"];
+               $student->lastname = $request["lastname"];
+               $student->slug = Str::slug($request["firstname"]);
+               $student->remark = $request["remark"];
+               $student->user_id = $user_id;
+
+               $student->save();
+               return redirect(route("students.index"));
+          }
+
+          *slug name will be updated, when the firstname is modified
+          - validation error and the updated information is not stored 
+               if check "regnumber" Unique and we only change firstname, not the regnumber field
+          -Unique check the field is not exist in the database table
+
+          - Forcing A Unique Rule To Ignore A Given ID
+               unique rule pass for the student id.
+               *update() must carefully specify id to ignore unique rule
+
+     => Small resource CRUD (Single Page)
+          =>Create + index
+               =index.blade.php
+                    <div class="col-md-12">
+                         <!-- http://127.0.0.1:8000/statuses -->
+                         <form action="{{route('statuses.store')}}" method="POST">
+                              {{ csrf_field() }}
+                              <div class="row align-items-end">
+                                   <div class="col-md-6">
+                                        <label for="name">Name <span class="text-danger">*</span></label>
+                                        <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Status Name" value="{{ old('name') }}"/>
+                                   </div>
+
+                                   <div class="col-md-6 ">
+                                        <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                                        <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                                   </div>
+                              </div>
+                         </form>
+                    </div>
+
+               =In StatusesController.php
+                    public function index()
+                    {
+                         $statuses = Status::all();
+                         return view("statuses.index",compact("statuses"));
+                    }
+
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "name" => "required|unique:statuses,name",
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $status = new Status();
+                         $status->name = $request["name"];
+                         $status->slug = Str::slug($request["name"]);
+                         $status->user_id = $user_id;
+
+                         $status->save();
+                         return redirect(route("statuses.index"));
+                    }
+                    *This time use Request.
+                    -We will study StatusCreateRequest later.
+
+                    -No longer require create().
+          
+          =>Read 
+               -Don't need to use show().
+          =>Delete
+               =In index.blade.php
+                    <td>
+                         <a href="{{ route('statuses.edit',$status->id) }}" class="text-info"><i class="fas fa-pen"></i></a>
+                         <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                    
+                    </td>
+                    <form id="formdelete-{{ $idx }}" class="" action="{{route('statuses.destroy',$status->id)}}" method="POST">
+                         @csrf
+                         @method("DELETE")
+                    </form>
+          
+          =>Edit/Update + index (Single Page)
+               =In index.blade.php
+                    <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$status->id}}" data-name="{{$status->name}}"><i class="fas fa-pen"></i></a>
+                    ....
+
+                    <!-- START MODAL AREA -->
+                         <!-- start edit modal -->
+                              <div id="editmodal" class="modal fade">
+                                   <div class="modal-dialog modal-sm modal-dialog-centered">
+                                        <div class="modal-content">
+                                             <div class="modal-header">
+                                                  <h6 class="modal-title">Edit Form</h6>
+                                                  <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                             </div>
+
+                                             <div class="modal-body">
+                                                  <form id="formaction" action="" method="POST">
+                                                       {{ csrf_field() }}
+                                                       {{ method_field('PUT') }}
+                                                       <div class="row align-items-end">
+                                                            <div class="col-md-8">
+                                                                 <label for="editname">Name <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="name" id="editname" class="form-control form-control-sm rounded-0" placeholder="Enter Status Name" value="{{ old('name') }}"/>
+                                                            </div>
+                                   
+                                                            <div class="col-md-2">
+                                                                 <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                            </div>
+                                                       </div>
+                                                  </form>
+                                             </div>
+
+                                             <div class="modal-footer">
+
+                                             </div>
+                                        </div>
+                                   </div>
+                              </div>
+                         <!-- end edit modal -->
+                    <!-- END MODAL AREA -->      
+
+                    ....
+
+                    // Start Edit Form
+                    $(document).on("click",".editform",function(e){
+                         // console.log($(this).attr("data-id"),$(this).attr("data-name"));
+                         
+                         $("#editname").val($(this).attr("data-name"));
+                         const getid = $(this).attr("data-id");
+                         $("#formaction").attr("action",`/statuses/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+
+                    *Show the current item information in edit modal 
+                         -modal box with bootstrap
+                         -link modal box with edit btn
+                         -"id", "name" pass from edit btn
+                         -clicking edit btn, set "name" to the edit form input field 
+
+                    *if modal form is set to action="{{route('statuses.update',$status->id)}}",
+                         the url is http://127.0.0.1:8000/statuses/14
+                         -change in any item will only change the last item because it is outside the loop
+                    
+                    *atomatically change update url of current item
+                         -clicking edit btn, dynamically set edit form action url with the current item "id" 
+
+     =>Image + Select box
+          php artisan make:controller RolesController -r
+          php artisan make:model Role -m 
+
+          =In Web
+               *under Auth
+               Route::resource("roles",RolesController::class);
+
+          =Migration
+               =create_roles_table.php
+                    $table->string("image")->nullable();
+                    $table->string("name");
+                    $table->string("slug");
+                    $table->unsignedBigInteger("status_id")->default("3");
+                    $table->unsignedBigInteger("user_id");
+
+               php artisan migrate:status
+               php artisan migrate
+
+          =In Model (Role.php)
+               protected $table = "roles";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "image",
+                    "name",
+                    "slug",
+                    "status_id",
+                    "user_id"
+               ];
+
+               public function user(){
+                    return $this->belongsTo(User::class);
+               }
+
+               public function status(){
+                    return $this->belongsTo(Status::class);
+               }
+
+          =>Image Preview
+               =In create.blade.php
+                    jQuery image preview html css js        
+                    filereader.onload = function(e){
+                         $(output).html(""); 
+                         $($.parseHTML('<img>')).attr('src',e.target.result).appendTo(output);
+                    }
+                    *Firstly repeatedly choosing image show unnecessary previous selected image.
+                         -Solution for this is, output element's html is set empty, preparing ready to show new image.
+
+          =>Status Option
+               =In RolesController.php
+                    public function create()
+                    {    
+                         //$statuses = Status::all(); // get all statuses
+                         $statuses = Status::whereIn("id",[3,4])->get();
+                         return view("roles.create",compact("statuses"));
+                    }
+
+               =In create.blade.php
+                    <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                         <!-- <option value="3">On</option>
+                         <option value="4">On</option> -->
+
+                         @foreach($statuses as $status)
+                              <option value="{{$status->id}}">{{ $status->name }}</option>
+                         @endforeach
+                    </select>
+
+                    *dynamically get statuses from database

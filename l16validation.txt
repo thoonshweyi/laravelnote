@@ -1,81 +1,229 @@
-php artisan make:model Student -m
+=>Validation Process
+     =Fontend validate 
+          required (html form attribute) - must fill
+          email - only look for @ sign - it can overlook from frontend
+          
+          javascript, reactjs (define customize policy by regular expression)
+     =Backend validate
+          nodejs, php (check again regular expression)
+     =Database validate
+          NOT NULL
+     3 step valication
+     *If frontend and backend do not validate and database validate, database will reject 
 
-     $table->string("regnumber")->unique();
-     $table->string("firstname");
-     $table->string("lastname");
-     $table->string("slug");
-     $table->text("remark")->nullable();
-     $table->unsignedBigInteger('status_id')->default("1");
-     $table->unsignedBigInteger('user_id');
+=>Validation rules
+     - check the input field and then store valid data
+     =In ProductController.php
+          public function store(Request $request)
+          {
+               // $this is equal to $request
+               $this->validate($request,[
+                    'name' => "required|unique:products,name",
+                    'price' => "required|numberic",
+                    'image' => "required|image|mimes:jpeg,png,jpg,gif,svg,ico|max:3072"
+               
+                    // 'title' => 'required|unique:articles,title|max:100',
+                    // 'status' => "required|in:active,inactive",
+                    // 'public_at' => 'nullable|date'
+               ]);
+          };
+     required - mandatory
+     unique: - unique:table,column
+     numberic - only number
+     image - image file
+     mimes: - mime stands for Multipurpose Internet Mail Extensions
+     max - file size, text length
+     in: - only specific value
+     nullable - 
+     date - date time format
 
-=In Model (Student.php)
+     =Migration
+          php artisan make:model Student -m
 
-protected $table = "students";
-protected $primaryKey = "id";
-protected $fillable = [
-     "regnumber",
-     "firstname",
-     "lastname",
-     "slug",
-     "remake",
-     "status_id",
-     "user_id"
-];
+          =create_students_table.php    
+               up()
+                    $table->string("regnumber")->unique();
+                    $table->string("firstname");
+                    $table->string("lastname");
+                    $table->string("slug");
+                    $table->text("remark")->nullable();
+                    $table->unsignedBigInteger('status_id')->default("1");
+                    $table->unsignedBigInteger('user_id');
+               
+               -"slug" is for pretty route name
+                    product/1/edit is with product id
+               -"status_id" control student access to platform. 
+                    active, inactive, pending block,
+               -"user_id" indicate the user who register the student.
 
-=In Controller
+          ---------------------------------------------------------
+          php artisan make:model Status -m
 
-     php artisan make:controller StudentsController --resource
+          =create_status_table.php    
+               up()
+                    $table->string("name");
+                    $table->string("slug");
+                    $table->unsignedBigInteger('user_id');
 
-=Create Validation
-     $this->validate($request,[
-          "regnumber" => "required|unique:students,regnumber",
-          "firstname"=>"required",
-          "lastname"=>"required",
-          "remark" => "max:200"
-     ]);
+          php artisan migrate:status
+          php artisan migrate
 
-=In Route
+          
+     =In Model (Student.php)
 
-Route::resource("statuses",StudentsController::class);
+          protected $table = "students";
+          protected $primaryKey = "id";
+          protected $fillable = [
+               "regnumber",
+               "firstname",
+               "lastname",
+               "slug",
+               "remark",
+               "status_id",
+               "user_id"
+          ];
 
-php artisan make:model Status -m
+     =In Model (Status.php)
 
-    $table->string("name")->unique();
-     $table->string("slug");
-     $table->unsignedBigInteger('user_id');
+          protected $table = "statuses";
+          protected $primaryKey = "id";
+          protected $fillable = [
+               "name",
+               "slug",
+               "user_id"
+          ];
 
-php artisan migrate:status;
-php artisan migrate;
+     =In Controller 
+
+          php artisan make:controller StudentsController --resource
+          php artisan make:controller StatusesController -r
+
+     =In Route
+
+          Route::resource("students",StudentsController::class);
+
+          Route::resource("statuses",StatusesController::class);
+
+          *use App\Http\Controllers\StatusesController;
+          *use App\Http\Controllers\StudentsController;
+
+     =CMD
+          php artisan route:list
+          php artisan route:list --path=students
+          php artisan route:list --path=statuses
+
+     
+     =>Create Validation
+          =In StudentsController.php
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "regnumber" => "required|unique:students,regnumber",
+                         "firstname"=>"required",
+                         "lastname"=>"required",
+                         "remark" => "max:200"
+                    ]);
+
+                    $user = Auth::user();
+
+                    $student = new Student();
+                    $student->regnumber = $request["regnumber"];
+                    $student->firstname = $request["firstname"];
+                    $student->lastname = $request["lastname"];
+                    $student->slug = Str::slug($request["firstname"]);
+                    $student->remark = $request["remark"];
+                    $student->user_id = $user->id();
+
+                    $student->save();
+                    return redirect(route("students.index"));
+               }
+               *use App\Models\Student;
+               *use Illuminate\Support\Facades\Auth;
+               *use Illuminate\Support\Str;
+
+               **** current authenticated user id is recorded.
+               $user_id = $user->id;
+               $student->user_id = $user_id;
 
 
-=In Model (Status.php)
 
-     protected $table = "statuses";
-     protected $primaryKey = "id";
-     protected $fillable = [
-          "name",
-          "slug",
-          "user_id"
-     ];
+          =In StatusesController.php
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "name" => "required|unique:statuses,name",
+                    ]);
+               }
+
+               *use App\Models\Status;
+               *use Illuminate\Support\Facades\Auth;
+               *use Illuminate\Support\Str;
 
 
-=In Controller
+          =>Create Request File For Validation
+               -repetative validation rules codes at the time of create and update 
+               -a reuseable solution
 
-     php artisan make:controller StatusesController --resource
+               php artisan make:request StatusRequest 
 
-=In Route
+               //a single request for create and update
+               //same rule for both create and update
 
-Route::resource("statuses",StatusesController::class);
+               ---------------------------------------------
+               php artisan make:request StatusCreateRequest 
+               php artisan make:request StatusUpdateRequest 
 
-=CMD
+               // seperate requests for create and update
+               // use in the situation when the create rule and update ruels are diffrent
 
-php artisan route:list
-php artisan route:list --path=students
-php artisan route:list --path=statuses
+               App > Http > Requests > StatusCreateRequest.php
 
-=>Create Request File For Validation
+               =Auth Request
+                    App > Http > Requests > ProfileUpdateRequest.php 
+                    App > Http > Requests > Auth
 
-php artisan make:request StatusRequest
-php artisan make:request StatusCreateRequest
-php artisan make:request StatusUpdateRequest
+                    =ProfileUpdateRequest.php
+                         public function rules(): array
+                         {
+                              return [
+                                   'name' => ['required', 'string', 'max:255'],
+                                   'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)->ignore($this->user()->id)],
+                              ];
+                         }
 
+               =In StatusCreateRequest.php
+
+                    public function authorize(): bool
+                    {
+                         return true;
+                    }
+                    // act as a control button to on/off the rules.
+
+              
+                    public function rules(): array
+                    {
+                         return [
+                              "name" => "required|unique:statuses,name",
+                         ];
+                    }
+                    // the specify rules write here
+
+               =In StatusesController.php
+                    public function store(StatusCreateRequest $request)
+                    {
+                         //     $this->validate($request,[
+                         //         "name" => "required|unique:statuses,name",
+                         //    ]);
+
+                         $user = Auth::user();
+
+                         $status = new Status();
+                         $status->name = $request["name"];
+                         $status->slug = Str::slug($request["name"]);
+                         $status->user_id = $user->id();
+
+                         $status->save();
+                         return redirect(route("statuses.index"));
+                    }
+
+          

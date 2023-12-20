@@ -460,4 +460,4 @@
 
                          - storage_path() represent storage > folder
 
-          * Althought, Image Preview (gallery) show many image, the code is for single image upload and it only upload only one last image.
+          * Althought, Image Preview (gallery) show many image, the code is for single image upload and it only upload only one last image

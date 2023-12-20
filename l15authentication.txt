@@ -1,16 +1,188 @@
 =>Authentication
 
+     =>Installation
+          laravel > Docs > Starter Kits
+          or
+          laravel > Docs > Security > Authentication
+               . *Breeze & Blade (with classic php for web development)
+               . Breeze & Livewire
+               . Breeze & React/ vue
+               . Breeze & Next.js / API
 
-// linux update example
-     sudo apt-get update
-     sudo apt-get upgrade
+          -packages
+               *ready-made code collaborated by developers
+               good packages enhance project
+               bad packages distrupt project
+               - inform choice is very important
 
-     sudo install git
+          Creating project
+               two-factor authentication (email / sms)
+               - self develop
+                    Email Provider
+                         AWS
+                         Alibaba
+                    By linking form and email api
+                    
+                    ADV
+                    long development time
+               - using packages
+
+                    ADV
+                    short development time
+                    easy to use
+                    continuous update
+
+                    DADV
+                    hard to understand 
+                    dishonest - trojan risk (getting user information in background)
+                    difficult error debug 
+                    dead version
+                    unmatch different platform version
+
+          First Update Composer
+               composer update
+
+               -first upadate before download new packages
+               -new versions are released infinitely (some command can't work for old version and only for new version)
+               -to prevent version unmatch errors 
+               *check for new versions in each official site and update 
+
+               laravel project > composer.json
+               laravel project > package.json (newly downloaded package will be added)
+
+               = linux update example
+                    sudo apt-get update
+                    sudo apt-get upgrade
+
+                    sudo install git
+                    -adjust version between own system and new package
+
+          =>Install Auth
+               *it can damage existing file
+               -it may overwrite routes in web.php because 
+               those routes can only be accessed after login authentication
+
+               =exercisetwo
+                    composer create-project laravel/laravel exercisetwo
+
+                    composer require laravel/breeze --dev   (only download backage)
+                    php artisan breeze:install              (install package)
+
+                    php artisan migrate                     (before this command .env file need to config for database)
+
+                    npm install                             (node_modules folder is added to the project)
+                    npm run dev
+                    
+                    -reactjs project need to run this command, for this time it doesn't need
+                    -old version use bootstrap file in the node_modules folder, npm command must run. Otherwise, it can't show view blade pages.
+                    
+                    *It will be a little changes in installation interface
+                    old version - number and text based cmd 
+                    new version - gui form like cmd 
+
+                    =Installation guide
+                         1STEP: Blade with Alpine
+                         2STEP: dark mode - no                                         
+                         3STEP: PHPUnit PEST - PHPUnit 
+                                   (PEST is for testing purpose. sample data have been inserted)
+
+                    *Authentication feature is integrated to the project.
 
 
-composer update
-composer require laravel/breeze --dev
-php artisan breeze:install
+          =Register
+               When a user register, it will store information at "users" table.
+               *password is encrypted. 
 
-php artisan migrate
-npm run dev
+               id   name           email               email_vefified_at   password       remember_token crreated_at         updated_at
+               1    Aung Aung      aungaung@gmail.com  NULL                $2y$12$        NULL           2023-12-12 07:27:33 2023-12-12 07:27:33
+
+               -After register user reach, Dashboard page. 
+          =Login
+               "Remember me" checkbox is checked and login.
+               
+               'remember_token' column store token code for current browser.
+               Future login check the browser token code and the database "remember_token" code.
+
+          =>Auth Files
+               app > Http > Controllers > ProfileController.php
+
+               =Profile
+                    Profile Information, Password can be updated. These are managed by ProfileController.
+
+               =In Route
+                    Route::get('/', function () {
+                        return view('welcome');
+                    });
+                    // welcome page. can view without login.
+                    resources > view > welcome.blade.php
+
+                    Route::get('/dashboard', function () {
+                         return view('dashboard');
+                    })->middleware(['auth', 'verified'])->name('dashboard');
+                    
+                    // dashboard page. can view only after login.
+                    resources > view > dashboard.blade.php
+
+
+                    Route::middleware('auth')->group(function () {
+                         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+                         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+                         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+                    });
+                    // profile routes can be accessed only after login.
+
+                    -middleware('auth') is a type of security. 
+                    -routes protect with middleware is only accessible after login.
+                    -Two type of middleware route
+                         individual 
+                         group
+
+               =Auth File
+                    key folder for authentication
+                    any changes related to authentiatin can be made
+
+                    app > Http > Controllers > Auth
+                         AuthenticatedSessionController
+
+                    resources > view > auth
+                         login.blade.php
+                         register.blade.php
+
+                    *login form design changes
+          
+          =>Login Information
+               =In dashboard.blade.php
+                    {{--
+                         <x-app-layout>
+                         ....
+                         </x-app-layout>
+                    --}}
+
+                    <html>
+                    <head>
+                         <title>Dashboard</title>
+                    </head>
+                    <body>
+                         <h1>Hello World</h1>
+
+                         {{ Auth::user() }} 
+                         <!-- user object -->
+                         {{ Auth::id() }} 
+                         <!-- 1 -->
+
+                         <?php
+
+                              $user = Auth::user();
+                              echo $user;
+                              echo "<br/>";
+                              echo $user->id;
+                              echo "<br/>";
+                              echo $user->name;
+                              echo "<br/>";
+                              echo $user->email;
+                              echo "<br/>";
+                              echo $user->password;
+                              echo "<br/>";
+                    ?>
+                    </body>
+                    </html>
