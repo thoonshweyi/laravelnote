@@ -61,4 +61,12 @@ Note:: php artisan config:clear
 
 --------------------------------------------
 
-=>After login
+=>After Login or Register (Redirect)
+
+     App > Providers > RouteServiceProvider > 
+          public const HOME = '/dashboards'; 
+--------------------------------------------
+=>Check Route
+
+     php artisan route:clear
+     php artisan route:cache

@@ -199,30 +199,31 @@
                'timezone' => 'Asia/Yangon',
 
      =>Update & Validate
-          public function update(Request $request, string $id)
-          {
-               $this->validate($request,[
-                    // "regnumber" => "required|unique:students,regnumber",
-                    "regnumber" => "required|unique:students,regnumber,".$id,
-                    "firstname"=>"required",
-                    "lastname"=>"required",
-                    "remark" => "max:1000"
-               ]);
+          =In StudentsController.php
+               public function update(Request $request, string $id)
+               {
+                    $this->validate($request,[
+                         // "regnumber" => "required|unique:students,regnumber",
+                         "regnumber" => "required|unique:students,regnumber,".$id,
+                         "firstname"=>"required",
+                         "lastname"=>"required",
+                         "remark" => "max:1000"
+                    ]);
 
-               $user = Auth::user();
-               $user_id = $user["id"];
+                    $user = Auth::user();
+                    $user_id = $user["id"];
 
-               $student = Student::findOrFail($id);
-               $student->regnumber = $request["regnumber"];
-               $student->firstname = $request["firstname"];
-               $student->lastname = $request["lastname"];
-               $student->slug = Str::slug($request["firstname"]);
-               $student->remark = $request["remark"];
-               $student->user_id = $user_id;
+                    $student = Student::findOrFail($id);
+                    $student->regnumber = $request["regnumber"];
+                    $student->firstname = $request["firstname"];
+                    $student->lastname = $request["lastname"];
+                    $student->slug = Str::slug($request["firstname"]);
+                    $student->remark = $request["remark"];
+                    $student->user_id = $user_id;
 
-               $student->save();
-               return redirect(route("students.index"));
-          }
+                    $student->save();
+                    return redirect(route("students.index"));
+               }
 
           *slug name will be updated, when the firstname is modified
           - validation error and the updated information is not stored 
@@ -234,7 +235,7 @@
                *update() must carefully specify id to ignore unique rule
 
      => Small resource CRUD (Single Page)
-          =>Create + index
+          =>Create/Store + index
                =index.blade.php
                     <div class="col-md-12">
                          <!-- http://127.0.0.1:8000/statuses -->
@@ -253,6 +254,20 @@
                               </div>
                          </form>
                     </div>
+                    ....
+
+                    <tbody>
+                         @foreach($statuses as $idx=>$status)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              <td>{{ $status->name }}</td>
+                              <td>{{ $status->user["name"] }}</td>
+                              <td>{{ $status->created_at->format('d M Y') }}</td>
+                              <td>{{ $status->updated_at->format('d M Y') }}</td>
+                              
+                         </tr>
+                         @endforeach
+                    </tbody>
 
                =In StatusesController.php
                     public function index()
@@ -284,7 +299,7 @@
                     -No longer require create().
           
           =>Read 
-               -Don't need to use show().
+               -Don't need to use show() because resource is too small.
           =>Delete
                =In index.blade.php
                     <td>
@@ -296,6 +311,13 @@
                          @csrf
                          @method("DELETE")
                     </form>
+               =In StatusesController.php
+                    public function destroy(string $id)
+                    {
+                         $student = Status::findOrFail($id);
+                         $student->delete();
+                         return redirect()->back();
+                    }
           
           =>Edit/Update + index (Single Page)
                =In index.blade.php
@@ -351,19 +373,42 @@
                          e.preventDefault();
                     });
                     // End Edit Form
+               
+               =In StatusesController.php
 
-                    *Show the current item information in edit modal 
-                         -modal box with bootstrap
-                         -link modal box with edit btn
-                         -"id", "name" pass from edit btn
-                         -clicking edit btn, set "name" to the edit form input field 
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "name" => "required|unique:statuses,name,".$id,
+                         ]);
 
-                    *if modal form is set to action="{{route('statuses.update',$status->id)}}",
-                         the url is http://127.0.0.1:8000/statuses/14
-                         -change in any item will only change the last item because it is outside the loop
-                    
-                    *atomatically change update url of current item
-                         -clicking edit btn, dynamically set edit form action url with the current item "id" 
+                         $user = Auth::user();
+                         $user_id = $user['id'];
+
+                         $status = Status::findOrFail($id);
+                         $status->name = $request["name"];
+                         $status->slug = Str::slug($request["name"]);
+                         $status->user_id = $user_id;
+
+                         $status->save();
+                         return redirect(route("statuses.index"));
+                    }
+                    -No longer require edit().
+
+               *Show the current item information in edit modal 
+                    -modal box with bootstrap
+                    -link modal box with edit btn
+                    -"id", "name" pass from edit btn
+                    -clicking edit btn, set "name" to the edit form input field 
+
+               *if modal form is set to action="{{route('statuses.update',$status->id)}}",
+                    the url is http://127.0.0.1:8000/statuses/14
+                    -change in any item will only change the last item because it is outside the loop
+                    -if there is no row in database, it will get error (undefined variable) since it didn't even enter the loop 
+               
+               *atomatically change update url of current item
+                    -clicking edit btn, dynamically set edit form action url with the current item "id" 
+
 
      =>Image + Select box
           php artisan make:controller RolesController -r
@@ -403,7 +448,7 @@
                     return $this->belongsTo(Status::class);
                }
 
-          =>Image Preview
+          =>Single Image Preview
                =In create.blade.php
                     jQuery image preview html css js        
                     filereader.onload = function(e){
@@ -433,3 +478,961 @@
                     </select>
 
                     *dynamically get statuses from database
+          
+          =>Image Store With Selected Role
+               =In RolesController.php
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "name" => "required|max:50|unique:roles,name",
+                              "image" => "image|mimes:jpg,jpeg,png|max:1024",
+                              "status_id" => "required|in:3,4",
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $role = new Role();
+                         $role->name = $request["name"];
+                         $role->slug = Str::slug($request["name"]);
+                         $role->status_id = $request["status_id"];
+                         $role->user_id = $user_id;
+
+                         // Single Image Upload
+                         if(file_exists($request["image"])){
+                              $file = $request["image"];
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$role['id'].$fname;
+                              $file->move(public_path("assets/img/roles"),$imagenewname);
+            
+                              $filepath = "assets/img/roles/".$imagenewname;
+                              $role->image = $filepath;
+                         }    
+
+                         $role->save();
+                         return redirect(route("roles.index"));
+                    }
+                    *update() needed to be careful than store() if UNIQUE rule is declared,
+                         other rules should be defined in front of UNIQUE for the clarity.
+                    -Whatever view status_id change, validation rule is not match unless 3 or 4.
+          
+                    
+                    public > foldername = routename
+                         $file->move(public_path("roles/img"),$imagenewname);
+                         $filepath = "roles/img".$imagenewname;
+
+                    *error
+                         Not Found
+                         The requested resource /roles was not found on this server.
+                    -However, roles/index can't be opened, create and other page can be opened.
+                    -Although error occur, the role record and image file (public>roles) are inserted successfully.
+          
+          =>Image View
+               =index.blade.php    
+                    <td><img src="{{ asset($role->image) }}" class="rounded-circle" alt="{{$role->name}}" width="20" height="20"/> <a href="{{route('roles.show',$role->id)}}">{{$role->name}}</a></td>
+                    
+               *asset() use for the file in project folder
+               *real world project use aws(amazone web service) and image store as http link
+                    so directly give src="$role->image"
+
+          =>Image Edit With Selected Role
+               =In RolesController.php
+                    public function edit(string $id)
+                    {
+                         $role = Role::findOrFail($id);
+                         $statuses = Status::whereIn("id",[3,4])->get();
+                         return view("roles.edit")->with("role",$role)->with("statuses",$statuses);
+                    }
+
+               option value = 2 
+               equal to
+               column value = 2
+
+               <option value="1">myanmar</option>
+               "country" column = 2
+               *'selected' attribute is to an select option 
+
+               =In index.blade.php
+                    <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                         @foreach($statuses as $status)
+                              <option value="{{$status->id}}" 
+                                   @if($status['id'] === $role->status_id)
+                                        selected
+                                   @endif
+                              >{{ $status->name }}</option>
+                         @endforeach
+                    </select>
+                    -show the statuses and highlight the selected status
+
+                    <form action="/roles/{{$role->id}}" method="POST" enctype="multipart/form-data">
+                         @csrf
+                         @method("PUT")
+
+                         <div class="row">
+
+                              <div class="col-md-4">
+                                   <div class="row">
+                                        <div class="col-md-6 text-sm-center">
+                                             <img src="{{ asset($role->image) }}" class="" alt="{{$role->name}}" width="200"/>
+                                        </div>
+                                        <div class="col-md-6">
+                                             <label for="image" class="gallery"><span>Choose Images</span></label>
+                                        </div>
+                                   </div>  
+                              </div>
+                    -one part show the previous image and another part show the newly changed image
+
+          =>Image Update
+               =In RolesController.php  
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "name" => ["required","max:50","unique:roles,name,".$id],
+                              "image" => ["image","mimes:jpg,jpeg,png","max:1024"],
+                              "status_id" => ["required","in:3,4"],
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $role = Role::findOrFail($id);
+                         $role->name = $request["name"];
+                         $role->slug = Str::slug($request["name"]);
+                         $role->status_id = $request["status_id"];
+                         $role->user_id = $user_id;
+
+                         // Remove Old Image
+                         if($request->hasFile("image")){
+                              $path = $role->image;
+
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+
+                         // Single Image Upload
+                         if($request->hasFile("image")){
+                              $file = $request->file("image");
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$role['id'].$fname;
+                              $file->move(public_path("assets/img/roles"),$imagenewname);
+                              
+                              $filepath = "assets/img/roles/".$imagenewname;
+                              $role->image = $filepath;
+                         }    
+
+                         $role->save();
+                         return redirect(route("roles.index"));
+                    }
+                    *Validation can be written as array.
+          
+          =>Image Delete
+               =In RolesController.php
+                    public function destroy(string $id)
+                    {
+                         $role = Role::findOrFail($id);
+                         
+                         // Remove Old Image
+                         $path = $role->image;
+                         if(File::exists($path)){
+                              File::delete($path);
+                         }
+                         
+                         $role->delete();
+                         return redirect()->back();
+                    }
+          -laravel has reload and reloading problem.
+          -Adding javascript is the solution for the problem. (Single File Create/Edit)
+
+          Laravel 
+          -Large Solid File is given.
+          -Long Time To download the file
+
+          React js
+          -Break the heavy workloads into Components
+          -Combine seperate components into a single file
+          -better performance
+
+     =>Fix Analysis
+          Statuses
+               'Active'
+               'Inactive'
+               'On'
+               'Off'
+               'Online'
+               'Offline'
+               'Public'
+               'Private'
+               'Friend Only'
+               'Member Only'
+               'Only Me'
+               'Enable'
+               'Disable'
+               'Ban'
+               'Unban'
+               'Block'
+               'Unblock'
+               'Terminate'
+
+     =>Small resource + Select box
+          php artisan make:controller TypesController 
+
+          =In Migration
+               php artisan make:model Type -m
+               =create_types_table.php
+                    up()
+                         $table->string("name")->unique();
+                         $table->string("slug");
+                         $table->unsignedBigInteger("status_id");
+                         $table->unsignedBigInteger("user_id");
+                         $table->timestamps();
+
+               php artisan migrate:status
+               php artisan migrate
+
+          =In Web
+               Route::resource("types",TypesController::class);
+
+          =>Check Route
+               php artisan route:list
+               php artisan route:clear
+               php artisan route:cache
+
+               *if the code is all fine and route is not ready
+                    it must be the problem of cache, so clear the cache. 
+          
+          =>Create/Store + index With Selected Option
+               =In TypesController.php
+                    public function index()
+                    {
+                         $types = Type::all();
+                         $statuses = Status::whereIn("id",[3,4])->get();
+                         return view("types.index",compact("types","statuses"));
+                    }
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "name" => "required|max:50|unique:types",
+                              "status_id" => "required|in:3,4",
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $type = new Type();
+                         $type->name = $request["name"];
+                         $type->slug = Str::slug($request["name"]);
+                         $type->status_id = $request["status_id"];
+                         $type->user_id = $user_id;
+                         $type->save();
+                         return redirect(route("types.index"));
+                    }
+               =In index.blade.php
+                    <div class="col-md-12">
+                         <form action="{{route('types.store')}}" method="POST">
+                              {{ csrf_field() }}
+
+                              <div class="row align-items-end">
+                                   <div class="col-md-4">
+                                        <label for="name">Name <span class="text-danger">*</span></label>
+                                        <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Type Name" value="{{ old('name') }}"/>
+                                   </div>
+
+                                   <div class="col-md-4">
+                                        <label for="status_id">Status</label>
+                                        <select name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                                             @foreach($statuses as $status)
+                                                  <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                             @endforeach     
+                                        </select>
+                                   </div>
+
+                                   <div class="col-md-4">
+                                        <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                                        <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                                   </div>
+                              </div>
+                         </form>
+                    </div>
+                    ....
+                    <tbody>
+                         @foreach($types as $idx=>$type)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              <td>{{$type["name"]}}</td>
+                              <td>{{ $type->status->name }}</td>
+                              <td>{{ $type["user"]["name"] }}</td>
+                              <td>{{ $type->created_at->format('d M Y') }}</td>
+                              <td>{{ $type->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$status->id}}" data-name="{{$status->name}}"><i class="fas fa-pen"></i></a>
+                                   <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                              </td>
+                              <form id="formdelete-{{ $idx }}" class="" action="{{route('types.destroy',$type->id)}}" method="POST">
+                                   @csrf
+                                   @method("DELETE")
+                              </form>
+                         </tr>
+                         @endforeach
+                    </tbody>
+
+          =>Delete
+               public function destroy(string $id)
+               {
+                    $type = Type::findOrFail($id);
+                    $type->delete();
+                    return redirect()->back();
+               }
+
+          =>Edit/Update + index With Selected Option
+               =In index.blade.php 
+                    <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$type->id}}" data-name="{{$type->name}}" data-status="{{$type->status_id}}"><i class="fas fa-pen"></i></a>
+                    ....
+
+                    <!-- START MODAL AREA -->
+                         <!-- start edit modal -->
+                         <div id="editmodal" class="modal fade">
+                              <div class="modal-dialog modal-dialog-centered">
+                                   <div class="modal-content rounded-0">
+                                        <div class="modal-header">
+                                             <h6 class="modal-title">Edit Form</h6>
+                                             <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+
+                                        <div class="modal-body">
+                                             <form id="formaction" action="" method="POST">
+                                                  {{ csrf_field() }}
+                                                  {{ method_field('PUT') }}
+                                                  <div class="row align-items-end">
+                                                       <div class="col-md-7">
+                                                            <label for="editname">Name <span class="text-danger">*</span></label>
+                                                            <input type="text" name="name" id="editname" class="form-control form-control-sm rounded-0" placeholder="Enter Status Name" value="{{ old('name') }}"/>
+                                                       </div>
+                                                       
+                                                       <div class="col-md-3 form-group">
+                                                            <label for="editstatus_id">Status</label>
+                                                            <select name="status_id" id="editstatus_id" class="form-control form-control-sm rounded-0">
+                                                                 @foreach($statuses as $status)
+                                                                      <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                                                 @endforeach     
+                                                            </select>
+                                                       </div>
+                                                       
+                              
+                                                       <div class="col-md-2">
+                                                            <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                       </div>
+                                                  </div>
+                                             </form>
+                                        </div>
+
+                                        <div class="modal-footer">
+
+                                        </div>
+                                   </div>
+                              </div>
+                         </div>
+                         <!-- end edit modal -->
+                    <!-- END MODAL AREA -->
+                    ....
+                    // Start Edit Form
+                    $(document).on("click",".editform",function(e){
+                         
+                         $("#editname").val($(this).attr("data-name"));
+                         $("#editstatus_id").val($(this).data("status"));
+                         
+                         const getid = $(this).attr("data-id");
+                         $("#formaction").attr("action",`/types/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+               *setting select box value automatically select that value 
+
+               =In TypesController.php
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "name" => ["required","max:50","unique:types,name,".$id],
+                              "status_id" => ["required","in:3,4"],
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $type = Type::findOrFail($id);
+                         $type->name = $request["name"];
+                         $type->slug = Str::slug($request["name"]);
+                         $type->status_id = $request["status_id"];
+                         $type->user_id = $user_id;
+                         $type->save();
+                         return redirect(route("types.index"));
+                    }
+
+               *It immediately change the newly updated status.Because of php reload feature.
+               *Later version will integrate switch to on/of and it doesn't update the value instantly.
+               
+          -----------------------------------------------------------------
+          -hw
+               create resources like statuses
+                    city
+                    country
+                    gender
+
+               php artisan make:model City -m
+               php artisan make:model Country -m
+               php artisan make:model Gender -m
+
+               php artisan make:controller CitiesController -r
+               php artisan make:controller CountriesController -r
+               php artisan make:controller GendersController -r
+
+               =Migration
+                    up()
+                         $table->string("name");
+                         $table->string("slug");
+                         $table->unsignedBigInteger('user_id');
+               =In Model
+
+                    protected $table = "statuses";
+                    protected $primaryKey = "id";
+                    protected $fillable = [
+                         "name",
+                         "slug",
+                         "user_id"
+                    ];
+
+                    public function user(){
+                         return $this->belongsTo(User::class);
+                    }
+          
+          -hw
+               category 
+               tag
+
+               (name, slug, status_id, user_id)
+          ----------------------------------------------------------
+
+     =>On/Off Switch Button 
+          =Create Category & Tag as types
+          
+          =>Migration
+
+               php artisan make:model Category -m
+               php artisan make:model Tag -m
+
+               =create_categories_table.php
+               =create_tags_table.php
+                    $table->string("name")->unique();
+                    $table->string("slug");  
+                    $table->unsignedBigInteger("status_id");
+                    $table->unsignedBigInteger("user_id");
+
+               php artisan make:controller TagsController -r
+               php artisan make:controller CategoriesController -r
+
+          =In categories > index.blade.php
+               <td>
+                    <div class="form-check form-switch">
+                         <input type="checkbox" class="form-check-input" {{ $category->status_id === 3 ? "checked" : "" }} />
+                    </div>
+               </td>
+
+          Tags
+               WDF
+               CSS Animation
+               jQuery
+               Bootstrap Projects
+               Mysql
+               Tailwind CSS
+               JSON & Firebase
+               ES6
+               PHP
+               Laravel
+               React
+               Node 
+               Linux (Ubuntu)
+               AWS
+
+     =>Class & Attendances
+          
+          =Migration
+               php artisan make:model Post -m
+               
+               =crate_posts_table.php
+                    $table->string("image")->nullable();
+                    $table->string("title");
+                    $table->string("slug");
+                    $table->longText("content");
+                    $table->decimal("fee",8,2)->default(0);
+                    $table->date("startdate")->nullable();
+                    $table->date("enddate")->nullable();
+                    $table->time("starttime")->nullable();
+                    $table->time("endtime")->nullable();
+                    $table->unsignedBigInteger("type_id");
+                    $table->unsignedBigInteger("tag_id");
+                    $table->unsignedBigInteger("attshow")->default("4");
+                    $table->unsignedBigInteger("status_id")->default("1");
+                    $table->unsignedBigInteger("user_id");
+
+               php artisan migrate:status
+               php artisan migrate
+
+               =In Model (Post)
+                    protected $table = "posts";
+                    protected $primaryKey = "id";
+                    protected $fillable = [
+                         "image",
+                         "title",
+                         "slug",
+                         "content",
+                         "fee",
+                         "startdate",
+                         "enddate",
+                         "starttime",
+                         "starttime",
+                         "type_id",
+                         "tag_id",
+                         "attshow",
+                         "status_id",
+                         "user_id"
+                    ];
+
+                    public function user(){
+                         return $this->belongsTo(User::class);
+                    }
+
+                    public function status(){
+                         return $this->belongsTo(Status::class);
+                    }
+
+                    public function tag(){
+                         return $this->belongsTo(Tag::class);
+                    }
+
+                    public function type(){
+                         return $this->belongsTo(Type::class);
+                    }
+
+          php artisan make:controller PostsController
+
+          =Migration
+               php artisan make:model Attendance -m
+               
+               =crate_attendances_table.php
+                    $table->date("classdate");
+                    $table->unsignedBigInteger("post_id");
+                    $table->string("attcode");    
+                    $table->unsignedBigInteger("user_id");        
+                    
+
+               php artisan migrate:status
+               php artisan migrate
+
+          php artisan make:controller AttendancesController
+
+          =>Create Post (Class)
+               =In PostsController.php
+                    public function create()
+                    {    
+                         $attshows = Status::whereIn("id",[3,4])->get();
+                         $statuses = Status::whereIn("id",[7,10,11])->get();
+                         $tags = Tag::where("status_id",3)->get();
+                         $types = Type::whereIn("id",[1,2])->get();
+
+                         return view("posts.create",compact("attshows","statuses","tags","types"));
+                    }
+                    *attshows for whether to show or not to show this class in attendance form - on/off (it is the borrowed property from the statuses)
+                    *statuses for visibility of this class (private/public/member only)
+                    *tags for the course of this class to filter the classes with the course name
+                    *types for the kind of this class (free or paid)
+
+               =In create.blade.php
+                    ....
+                    <div class="col-md-6">
+                         <label for="type_id">Type <span class="text-danger">*</span></label>
+                         <select name="type_id" id="type_id" class="form-control form-control-sm rounded-0">
+                              @foreach($types as $type)
+                                   <option value="{{$type->id}}">{{ $type->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                         <label for="fee">Fee <span class="text-danger">*</span></label>
+                         <input type="number" name="fee" id="fee" class="form-control form-control-sm rounded-0" placeholder="Class Fee" value="{{ old('fee') }}"/>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                         <label for="content">Content <span class="text-danger">*</span></label>
+                         <textarea name="content" id="content" class="form-control form-control-sm rounded-0" rows="5" placeholder="Say Something....">{{ old('content') }}</textarea>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="tag_id">Type <span class="text-danger">*</span></label>
+                         <select name="tag_id" id="tag_id" class="form-control form-control-sm rounded-0">
+                              @foreach($tags as $tag)
+                                   <option value="{{$tag->id}}">{{ $tag->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="attshow">Show on Att Form <span class="text-danger">*</span></label>
+                         <select name="attshow" id="attshow" class="form-control form-control-sm rounded-0">
+                              @foreach($attshows as $attshow)
+                                   <option value="{{$attshow->id}}">{{ $attshow->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="name">Status <span class="text-danger">*</span></label>
+                         <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                              @foreach($statuses as $status)
+                                   <option value="{{$status->id}}">{{ $status->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+                    ....
+
+               =>Hide File Input  
+                    =In create.blade.php     
+                    <div class="row">
+                         <div class="col-md-12 mb-3">
+                              <label for="image" class="gallery"><span>Choose Images</span></label>
+                              <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ old('image')}}" hidden/>
+                         </div>
+
+                         <div class="col-md-6 mb-3">
+                              <label for="startdate">Start Date <span class="text-danger">*</span></label>
+                              <input type="date" name="startdate" id="startdate" class="form-control form-control-sm rounded-0" value="{{ old('startdate') }}"/>
+                         </div>
+
+                         <div class="col-md-6 mb-3">
+                              <label for="enddate">End Date <span class="text-danger">*</span></label>
+                              <input type="date" name="enddate" id="enddate" class="form-control form-control-sm rounded-0" value="{{ old('enddate') }}"/>
+                         </div>
+
+                         <div class="col-md-6 mb-3">
+                              <label for="starttime">Start Time <span class="text-danger">*</span></label>
+                              <input type="time" name="starttime" id="starttime" class="form-control form-control-sm rounded-0" value="{{ old('starttime') }}"/>
+                         </div>
+
+                         <div class="col-md-6 mb-3">
+                              <label for="endtime">End Time <span class="text-danger">*</span></label>
+                              <input type="time" name="endtime" id="endtime" class="form-control form-control-sm rounded-0" value="{{ old('endtime') }}"/>
+                         </div>
+                    </div>
+
+          =>Store Post 
+               =In PostsController.php
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "image" => "image|mimes:jpg,jpeg,png|max:1024",
+                              "title" => "required|max:50|unique:posts,title",
+                              "content" => "required",
+                              "fee" => "required",
+                              "startdate" => "required",
+                              "enddate" => "required",
+                              "starttime" => "required",
+                              "endtime" => "required",
+                              "type_id" => "required|in:1,2",
+                              "tag_id" => "required",
+                              "attshow" => "required|in:3,4",
+                              "status_id" => "required|in:7,10,11",   
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $post = new Post();
+                         $post->title = $request["title"];
+                         $post->slug = Str::slug($request["name"]);
+                         $post->content = $request["content"];
+                         $post->fee = $request["fee"];
+                         $post->startdate = $request["startdate"];
+                         $post->enddate = $request["enddate"];
+                         $post->starttime = $request["starttime"];
+                         $post->endtime = $request["endtime"];
+                         $post->type_id = $request["type_id"];
+                         $post->tag_id = $request["tag_id"];
+                         $post->attshow = $request["attshow"];
+                         $post->status_id = $request["status_id"];
+                         $post->user_id = $user_id;
+
+                         // Single Image Upload
+                         if(file_exists($request["image"])){
+                              $file = $request["image"];
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$post['id'].$fname;
+                              // $file->move(public_path("posts/img"),$imagenewname);
+                              $file->move(public_path("assets/img/posts"),$imagenewname);
+                              
+                              $filepath = "assets/img/posts/".$imagenewname;
+                              $post->image = $filepath;
+                         }    
+
+                         $post->save();
+                         return redirect(route("posts.index"));
+                    }
+
+          =>List All Posts
+               
+               =>Joining Customize Foriegn Key name
+
+                    =In PostsController.php
+                         public function attstatus(){
+                                        // related, foreignKey
+                              return $this->belongsTo(Status::class,"attshow");
+                                                       // related, foreignKey, ownerKey
+                              // return $this->belongsTo(Status::class,"attshow","id");
+                         }
+
+                         
+                         public function type(){
+                                                            // related
+                              // return $this->belongsTo(Type::class);
+                                                            // related, foreignKey
+                              // return $this->belongsTo(Type::class,"type_id");
+                                                       // related, foreignKey, ownerKey
+                              return $this->belongsTo(Type::class,"type_id","id");
+
+                         }
+                    
+                    *laravel automatically recognize foreign key name by the naming convention rule of 'basetable_column'
+                    *Customize foreign key name require additional parameter to pass.
+                    *$this->belongsTo(relatedtable,foreignkey,primarykey);
+
+                    =In index.blade.php
+                         @foreach($posts as $idx=>$post)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td><img src="{{ asset($post->image) }}" class="rounded-circle" alt="{{$post->title}}" width="20" height="20"/> <a href="{{route('posts.show',$post->id)}}">{{ Str::limit($post->title,20) }}</a></td>
+                                   <td>{{ $post->startdate }}</td>
+                                   <td>{{ $post->enddate }}</td>
+                                   <td>{{ $post->starttime }}</td>
+                                   <td>{{ $post->endtime }}</td>
+                                   <td>{{ $post->fee }}</td>
+                                   <td>{{ $post->type->name }}</td>
+                                   <td>{{ $post->tag->name }}</td>
+                                   <td>{{ $post->attstatus["name"] }}</td>
+                                   <td>{{ $post->status["name"] }}</td>
+                                   <td>{{ $post->user["name"] }}</td>
+                                   <td>{{ $post->created_at->format('d M Y') }}</td>
+                                   <td>{{ $post->updated_at->format('d M Y') }}</td>
+                                   <td>
+                                        <a href="{{ route('posts.edit',$post->id) }}" class="text-info"><i class="fas fa-pen"></i></a>
+                                        <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                                   </td>
+                                   <form id="formdelete-{{ $idx }}" class="" action="{{route('posts.destroy',$post->id)}}" method="POST">
+                                        @csrf
+                                        @method("DELETE")
+                                   </form>
+                              </tr>
+                              @endforeach
+                    =>Be Careful
+                         column name = method name
+                         *Error
+
+                         <td>{{ $post->attshow["name"] }}</td>
+
+                          public function attstatus(){
+                              return $this->belongsTo(Status::class,"attshow");
+                         }
+
+          =>Edit Post
+               =In PostsController.php
+                    public function edit(string $id)
+                    {
+
+                         $post = Post::findOrFail($id);
+                         $attshows = Status::whereIn("id",[3,4])->get();
+                         $statuses = Status::whereIn("id",[7,10,11])->get();
+                         $tags = Tag::where("status_id",3)->get();
+                         $types = Type::whereIn("id",[1,2])->get();
+
+                         return view("posts.edit")->with("post",$post)->with("attshows",$attshows)->with("statuses",$statuses)->with("tags",$tags)->with("types",$types);
+                    }
+
+               =In edit.blade.php
+                    <div class="col-md-12 mb-3">
+                         <label for="title">Title <span class="text-danger">*</span></label>
+                         <input type="text" name="title" id="title" class="form-control form-control-sm rounded-0" placeholder="Enter Post Title" value="{{ $post->title }}"/>
+                    </div>
+
+                    <div class="col-md-6">
+                         <label for="type_id">Type <span class="text-danger">*</span></label>
+                         <select name="type_id" id="type_id" class="form-control form-control-sm rounded-0">
+                              @foreach($types as $type)
+                                   <option value="{{$type->id}}"
+                                        @if($type["id"] === $post["type_id"])
+                                             selected
+                                        @endif
+                                   >{{ $type->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                         <label for="fee">Fee <span class="text-danger">*</span></label>
+                         <input type="number" name="fee" id="fee" class="form-control form-control-sm rounded-0" placeholder="Class Fee" value="{{ $post->fee }}"/>
+                    </div>
+
+                    <div class="col-md-12 mb-3">
+                         <label for="content">Content <span class="text-danger">*</span></label>
+                         <textarea name="content" id="content" class="form-control form-control-sm rounded-0" rows="5" placeholder="Say Something....">{{$post->content}}</textarea>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="tag_id">Type <span class="text-danger">*</span></label>
+                         <select name="tag_id" id="tag_id" class="form-control form-control-sm rounded-0">
+                              @foreach($tags as $tag)
+                                   <option value="{{$tag->id}}"
+                                        @if($tag->id === $post["tag_id"])
+                                             selected
+                                        @endif
+                                   >{{ $tag->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="attshow">Show on Att Form <span class="text-danger">*</span></label>
+                         <select name="attshow" id="attshow" class="form-control form-control-sm rounded-0">
+                              @foreach($attshows as $attshow)
+                                   <option value="{{$attshow->id}}"
+                                        @if($attshow["id"] === $post["attshow"])
+                                             selected
+                                        @endif
+                                   >{{ $attshow->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+                    <div class="col-md-3">
+                         <label for="name">Status <span class="text-danger">*</span></label>
+                         <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                              @foreach($statuses as $status)
+                                   <option value="{{$status->id}}" {{ ($status->id === $post->status_id) ? "selected" : "" }} >{{ $status->name }}</option>
+                              @endforeach
+                         </select>
+                    </div>
+
+               *Ternary Operator Condition Checking
+
+               =>Old New Image Show
+                    =In edit.blade.php
+                         <div class="row">
+                              <div class="col-md-6 text-sm-center">
+                                   <img src="{{asset($post->image)}}" width="200" alt="{{$post->title}}"/>
+                              </div>
+                              <div class="col-md-6">
+                                   <label for="image" class="gallery"><span>Choose Images</span></label>
+                                   <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ $post->image }}" hidden/>
+                              </div>
+                         </div>
+
+          =>Update Post
+               =In PostsController.php
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "image" => "image|mimes:jpg,jpeg,png|max:1024",
+                              "title" => "required|max:50|unique:posts,title,".$id,
+                              "content" => "required",
+                              "fee" => "required",
+                              "startdate" => "required",
+                              "enddate" => "required",
+                              "starttime" => "required",
+                              "endtime" => "required",
+                              "type_id" => "required|in:1,2",
+                              "tag_id" => "required",
+                              "attshow" => "required|in:3,4",
+                              "status_id" => "required|in:7,10,11",   
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $post = Post::findOrFail($id);
+                         $post->title = $request["title"];
+                         $post->slug = Str::slug($request["name"]);
+                         $post->content = $request["content"];
+                         $post->fee = $request["fee"];
+                         $post->startdate = $request["startdate"];
+                         $post->enddate = $request["enddate"];
+                         $post->starttime = $request["starttime"];
+                         $post->endtime = $request["endtime"];
+                         $post->type_id = $request["type_id"];
+                         $post->tag_id = $request["tag_id"];
+                         $post->attshow = $request["attshow"];
+                         $post->status_id = $request["status_id"];
+                         $post->user_id = $user_id;
+
+
+                         // Remove Old Image
+                         if($request->hasFile("image")){
+                              $path = $post->image;
+
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+
+                         // Single Image Update
+                         if($request->hasFile("image")){
+                              $file = $request->file("image");
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$post['id'].$fname;
+                              $file->move(public_path("assets/img/posts"),$imagenewname);
+                              
+                              $filepath = "assets/img/posts/".$imagenewname;
+                              $post->image = $filepath;
+                         }    
+
+                         $post->save();
+                         return redirect(route("posts.index"));
+                    }
+
+          =>Delete Post
+               =In PostsController.php  
+                    public function destroy(string $id)
+                    {
+                         $post = Post::findOrFail($id);
+                         
+                         // Remove Old Image
+                         $path = $post->image;
+                         if(File::exists($path)){
+                              File::delete($path);
+                         }
+                         
+                         $post->delete();
+                         return redirect()->back();
+                    }
+
+          =>Show Post
+               =In PostsController.php
+                    public function show(string $id)
+                    {
+                         $post = Post::findOrFail($id);
+                         return view("posts.show",["post"=>$post]);
+                    }
+               =In show.blade.php
+                    <div class="col-md-6">
+                         <i class="fas fa-user fa-sm"></i> <span>{{$post["tag"]["name"]}}</span>
+                         <br/>
+                         <i class="fas fa-user fa-sm"></i> <span>{{$post["type"]["name"]}} : {{$post->fee}} </span>
+                         <br/>
+                         <i class="fas fa-user fa-sm"></i> <span>{{$post["user"]["name"]}}</span>
+                    </div>
+                    <div class="col-md-6">
+                         <i class="fas fa-file fa-sm"></i> <span>{{$post["attstatus"]["name"]}}</span>
+                         <br/>
+                         <i class="fas fa-calendar-alt fa-sm"></i> <span>{{date('d M Y',strtotime($post->created_at))}} | {{date('h:i:s A',strtotime($post->created_at))}}</span>
+                         <br/>
+                         <i class="fas fa-edit fa-sm"></i> <span>{{date('d M Y h:i:s A',strtotime($post->updated_at))}}</span>
+                    </div>
+               
+               =>Commenting Feature
