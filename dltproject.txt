@@ -954,7 +954,7 @@
                Linux (Ubuntu)
                AWS
 
-     =>Class & Attendances
+     =>Class
           
           =Migration
                php artisan make:model Post -m
@@ -1016,21 +1016,7 @@
 
           php artisan make:controller PostsController
 
-          =Migration
-               php artisan make:model Attendance -m
-               
-               =crate_attendances_table.php
-                    $table->date("classdate");
-                    $table->unsignedBigInteger("post_id");
-                    $table->string("attcode");    
-                    $table->unsignedBigInteger("user_id");        
-                    
-
-               php artisan migrate:status
-               php artisan migrate
-
-          php artisan make:controller AttendancesController
-
+     
           =>Create Post (Class)
                =In PostsController.php
                     public function create()
@@ -1435,4 +1421,1029 @@
                          <i class="fas fa-edit fa-sm"></i> <span>{{date('d M Y h:i:s A',strtotime($post->updated_at))}}</span>
                     </div>
                
-               =>Commenting Feature
+          =>Commenting Feature
+               =Migration
+                    php artisan make:model Comment -m
+
+                    =create_comments_table.php
+                         $table->text("description");
+                         $table->unsignedBigInteger("user_id");
+                         $table->unsignedBigInteger("commentable_id");
+                         $table->string("commentable_type");
+
+                    php artisan migrate:status
+                    php artisan migrate
+               
+               =In Model (Comment.php)
+
+                    protected $table = "comments";
+                    protected $primaryKey = "id";
+                    protected $fillable = [
+                         "description",
+                         "user_id",
+                         "commentable_id",
+                         "commentable_type"
+                    ];
+
+                    public function user(){
+                         return $this->belongsTo(User::class);
+                    }
+                    
+               php artisan make:controller CommentsController
+
+               =In CommentsController.php
+                    public function store(Request $request)
+                    {
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         Comment::create([
+                              "description"=>$request["description"],
+                              "user_id"=>$user_id,
+                              "commentable_id"=>$request["commentable_id"],
+                              "commentable_type"=>$request["commentable_type"],
+                         ]);
+                         return redirect()->back();
+                    }
+
+               =In show.blade.php
+                    <form action="{{route('comments.store')}}" method="POST">
+                         @csrf
+                         <div class="col-md-12 d-flex justify-between">
+                              <textarea name="description" id="description"  class="form-control border-0 rounded-0" rows="1" style="resize:none;" placeholder="Comment here...."></textarea>
+                              <button type="submit" class="btn btn-info btn-sm text-light ms-3"><i class="fas fa-paper-plane"></i></button>
+                         </div>
+
+                         <!-- Start Hidden Fields -->
+                         <input type="hidden" name="commentable_id" id="commentable_id" value="{{$post->id}}" />
+                         <input type="hidden" name="commentable_type" id="commentable_type" value="App\Models\Post" />
+                         <!-- Start Hidden Fields -->
+
+                    </form>
+
+                    *commentable_id, commentable_type is passed as hidden field.
+                         -user don't need to manually choose this fields
+                         -it must be filled by the system
+
+               =In Web 
+                    Route::resource("comments",CommentsController::class);
+
+               =>Showing others related comments
+                    =In Model (Comments)
+                         public function commentable(){
+                              return $this->morphTo();
+                         }
+                    =In Model (Post, User)
+                         public function comments(){
+                              return $this->morphMany(Comment::class,"commentable");
+                         }
+                    
+                    =In PostsController.php
+                         public function show(string $id)
+                         {
+                              $post = Post::findOrFail($id);
+                              // $comments = Comment::where("commentable_id",$post->id)->where("commentable_type","App\Models\Posts")->orderBy("created_at","desc")->get();
+                              $comments = $post->comments()->orderBy("updated_at","desc")->get();
+                              return view("posts.show",["post"=>$post,"comments"=>$comments]);
+                         }
+                         
+                         *Simple comments retrieve must check "commentable_id" and "commenetable_type"   
+                         *Relationship retrieve no need to to check commentable columns
+                         *latest comments reach at the top with orderBy()
+
+                    =In show.blade.php
+                         <ul class="list-group chat-boxs">
+                              @foreach($comments as $comment)
+                                   <li class="list-group-item mt-2">
+                                        <div>
+                                             <p>{{$comment->description}}</p>
+                                        </div>
+                                        <div>
+                                             <span class="small fw-bold  float-end">{{$comment->user["name"] }} | {{$comment->created_at->diffForHumans()}}</span>
+                                             
+                                        </div>
+                                        
+                                   </li>
+                              @endforeach
+                         </ul>
+
+                         ....
+                         @section("css")
+                              <style type="text/css">
+                                   .chat-boxs{
+                                        height: 200px;
+                                        overflow-y : scroll;
+                                   }
+                              </style>     
+
+                         @endsection
+
+                         *show comment details 
+                         *human readable date formate changing
+                         *add scroll bar for many comments
+                    
+          =>Class Days
+               php artisan make:controller DaysController
+
+               =>Migration
+                    php artisan make:model Day -m              
+
+                    =create_days_table.php
+                         $table->string("name")->unique();
+                         $table->string("slug");
+                         $table->unsignedBigInteger("status_id");
+                         $table->unsignedBigInteger("user_id");
+                    
+                    php artisan migrate:status
+                    php artisan migrate
+               
+               =>In Web
+                    Route::resource("days",DaysController::class);
+               Days
+                    Sunday
+                    Monday
+                    Tuesday
+                    Wednesday
+                    Thursday
+                    Friday
+                    Saturday
+
+               =>Create Modal    
+                    =In categories > index.blade.php
+                         <a href="#createmodal" class="btn btn-primary btn-sm rounded-0" data-bs-toggle="modal">Create</a>
+
+                         <!-- start create modal -->
+                              <div id="createmodal" class="modal fade">
+                                   <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-0">
+                                             <div class="modal-header">
+                                                  <h6 class="modal-title">Create Form</h6>
+                                                  <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                             </div>
+
+                                             <div class="modal-body">
+                                                  <form id="{{route('categories.store')}}" action="" method="POST">
+                                                       {{ csrf_field() }}
+                                                       <div class="row align-items-end">
+                                                            <div class="col-md-7">
+                                                                 <label for="name">Name <span class="text-danger">*</span></label>
+                                                                 <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Status Name" value="{{ old('name') }}"/>
+                                                            </div>
+                                                            
+                                                            <div class="col-md-3 form-group">
+                                                                 <label for="status_id">Status</label>
+                                                                 <select name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                                                                      @foreach($statuses as $status)
+                                                                           <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                                                      @endforeach     
+                                                                 </select>
+                                                            </div>
+                                                            
+                                   
+                                                            <div class="col-md-2">
+                                                                 <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                                            </div>
+                                                       </div>
+                                                  </form>
+                                             </div>
+
+                                             <div class="modal-footer">
+
+                                             </div>
+                                        </div>
+                                   </div>
+                              </div>
+                         <!-- end create modal -->
+
+                         *data-bs-target="" don't need to set for <a> tag 
+                         because <a> tag include href="" for target element
+
+               =>Days in Create Post
+                    =In PostsController.php
+                         public function create()
+                         {    
+                              $attshows = Status::whereIn("id",[3,4])->get();
+                              $days = Day::where("status_id",3)->get();
+                              $statuses = Status::whereIn("id",[7,10,11])->get();
+                              $tags = Tag::where("status_id",3)->get();
+                              $types = Type::whereIn("id",[1,2])->get();
+
+                              return view("posts.create",compact("attshows","days","statuses","tags","types"));
+                         }
+                    =In posts > create.blade.php
+                         <div class="col-md-12 for-group">
+                              <label for="">Days</label>
+                              <div class="d-flex flex-wrap">
+                                   @foreach($days as $idx=>$day)
+                                        <div class="form-check form-switch mx-3">
+                                             <input type="checkbox" name="day_id[]" id="day_id{{$idx}}" class="form-check-input" value="{{$day->id}}" checked/> <label for="day_id{{$idx}}">{{$day->name}}</label>
+                                        </div>
+                                   @endforeach
+                              </div>
+                         </div>
+
+               =>Days of Post Storing method
+                    Method 1
+                         -days are stored at "posts" table
+                              by adding 7 columns  
+                         -these columns type are boolean
+                    Method 2
+                         -days are stored at "posts" table
+                              by adding only 1 column  
+
+                         -That column will be JSON format
+
+                    Method 3
+                         Many to Many
+                         dayable
+                         id post_id day_id
+
+               =>Days of Post Store With (Polymorphic Many to Many)                              
+                    =Migration
+                         php artisan make:model Dayable -m
+                         
+                         =create_dayables_table.php
+                              $table->integer("day_id");
+                              $table->integer("dayable_id");
+                              $table->string("dayable_type");
+                         *id, and timestamps are dropped at this time.
+
+                         php artisan migrate:status
+                         php artisan migrate
+                    
+                    =In Model (Day)
+                         protected $table = "dayables";
+                         protected $fillable = [
+                              "day_id",
+                              "dayable_id",
+                              "dayable_type"
+                         ];
+                    
+                    =In PostsController.php
+                         $post->save();
+
+     
+                         if($post->id){
+                              // dd($request["day_id"]);
+
+                              // create dayable
+                              // Method 1
+                              // if(count($request["day_id"]) > 0){
+                                   
+                              //     foreach($request["day_id"] as $key=>$value){
+                              //         Dayable::create([
+                              //             // "day_id"=>$request["day_id"][$key],
+                              //             "day_id"=>$value,
+                              //             "dayable_id"=>$post->id,
+                              //             "dayable_type"=>$request["dayable_type"]
+                              //         ]);
+                              //     }
+                              // }
+
+                              // Methd 2
+                              if(count($request["day_id"]) > 0){
+                                             
+                                   foreach($request["day_id"] as $key=>$value){
+                                        $day = [
+                                        // "day_id"=>$request["day_id"][$key],
+                                        "day_id"=>$value,
+                                        "dayable_id"=>$post["id"],
+                                        "dayable_type"=>$request["dayable_type"]
+                                        ];
+                                        Dayable::insert($day);
+                                   }
+                              }
+
+                         }
+                         
+
+                         *store days after saving post.
+                         *Successfully saved post id is already generated. It is ready for use.
+                         
+                         *day_id is given as array. This array need to iterate a looping.
+                              array:7 [
+                              0 => "1"
+                              1 => "2"
+                              2 => "3"
+                              3 => "4"
+                              4 => "5"
+                              5 => "6"
+                              6 => "7"
+                              ]
+                              -only the checked days are in the arrays.
+                         
+                         *dayable_type can be written directly at the Controller because it is only for the post.
+                              In CommentController, it can not be written directly and given from the form.
+
+                    =In create.blade.php
+                         <!-- start hidden field -->
+                                   <input type="hidden" name="dayable_type" id="dayable_type" value="App\Models\Post" />
+                         <!-- end hidden field -->
+                    
+                    *error(Unknown column 'updated_at' in 'field list')
+                         timestamps() are dropped at the migrations. Laravel automatically insert these columns.
+                    
+                    =In Model Dayable.php
+                         protected $timestamps = false;
+
+                    *error (Access level to App\Models\Dayable::$timestamps must be public)
+                         public $timestamps = false;
+                    
+                    *while error occur, new post is successfully saved to the posts table. becausse these errors occur after saving post.
+
+                    *after inserting a post, days related to this post is stored in dayable table.
+                    "dayables"
+                    day_id    dayable_id     dayable_type
+                    2         18             App\Model\Post
+                    4         18   
+                    6         18
+
+               =>Days in Edit Post
+                    =In Model (Post.php)
+                         public function days(){
+                              return $this->morphToMany(Day::class,"dayable");
+                         }
+                    
+                    =In Model (Day.php)
+                         public function posts(){
+                              return $this->morphedByMany(Post::class,"dayable");
+                         }
+
+                    =In PostsController.php
+                         public function edit(string $id)
+                         {
+
+                              $post = Post::findOrFail($id);
+                              // dd($post); // Post object
+                              $days = Day::where("status_id",3)->get();
+                              $dayables = $post->days()->get();
+                              // dd($dayables); // Day object
+                              $attshows = Status::whereIn("id",[3,4])->get();
+                              $statuses = Status::whereIn("id",[7,10,11])->get();
+                              $tags = Tag::where("status_id",3)->get();
+                              $types = Type::whereIn("id",[1,2])->get();
+
+                              return view("posts.edit")->with("post",$post)->with("attshows",$attshows)->with("days",$days)->with("dayables",$dayables)->with("statuses",$statuses)->with("tags",$tags)->with("types",$types);
+                         }
+                         *Query laravel executing in background (study from error)
+                              select `days`.*, `dayables`.`dayable_id` as `pivot_dayable_id`, `dayables`.`dayable_type` as `pivot_dayable_type` from `days` inner join `dayables` on `days`.`id` = `dayables`.`dayable_id` where `dayables`.`dayable_id` = 18 and `dayables`.`dayable_type` = App\Models\Post
+                         *$dayables get the relative days with the post
+                         *not working
+                              @if($dayable['day_id'] === $day['id'])
+                              -because it is retrieved from dummy table and not from regular table.
+                         *Regular Post Object
+                              App\Models\Post {#1411 ▼ // app\Http\Controllers\PostsController.php:137
+                              #connection: "mysql"
+                              #table: "posts"
+                              #primaryKey: "id"
+                              ....
+                              #original: array:17 [
+                                   "id" => 18
+                                   "image" => null
+                                   "title" => "React Js Batch 10"
+                                   "slug" => ""
+                                   "content" => "hello sir"
+                                   "fee" => "90000.00"
+                                   "startdate" => "2023-12-22"
+                                   "enddate" => "2024-01-30"
+                                   "starttime" => "06:17:00"
+                                   "endtime" => "08:20:00"
+                                   "type_id" => 1
+                                   "tag_id" => 11
+                                   "attshow" => 3
+                                   "status_id" => 7
+                                   "user_id" => 1
+                                   "created_at" => "2024-01-14 17:18:36"
+                                   "updated_at" => "2024-01-14 17:18:36"
+                              ]
+
+                         *Eloquent Collection Object
+                              Illuminate\Database\Eloquent\Collection {#1415 ▼ // app\Http\Controllers\PostsController.php:140
+                                   #items: array:3 [▼
+                                   0 => App\Models\Day {#1404 ▼
+                                        #connection: "mysql"
+                                        #table: "days"
+                                        #primaryKey: "id"
+                                        ....
+                                        #original: array:10 [▼
+                                        "id" => 2
+                                        "name" => "Monday"
+                                        "slug" => "monday"
+                                        "status_id" => 3
+                                        "user_id" => 1
+                                        "created_at" => "2024-01-13 15:27:05"
+                                        "updated_at" => "2024-01-13 15:27:05"
+                                        "pivot_dayable_id" => 18
+                                        "pivot_day_id" => 2
+                                        "pivot_dayable_type" => "App\Models\Post"
+                                        ]
+                                        ....
+                                   }
+                                   1 => App\Models\Day {#1427 ▶}
+                                   2 => App\Models\Day {#1430 ▶}
+                                   ]
+                                   #escapeWhenCastingToString: false
+                              }
+                              *Dummy table columlns can be retrived with keyword pivot
+                         
+                         -it is essential to check 'original'
+                         
+                         *not working
+                              @if($dayable['pivot_day_id'] === $day['id'])
+                              -it has specific method to retrieve pivot.
+
+                    =In posts > edit.blade.php
+                         @foreach($days as $idx=>$day)
+                              <div class="form-check form-switch mx-3">
+                                   <input type="checkbox" name="day_id[]" id="day_id{{$idx}}" class="form-check-input" value="{{$day->id}}" 
+                                        @foreach($dayables as $dayable)
+                                             @if($dayable['id'] === $day['id'])
+                                                  checked
+                                             @endif
+                                        @endforeach
+                                   /> 
+                                   <label for="day_id{{$idx}}">{{$day->name}}</label>
+                              </div>
+                         @endforeach
+
+               =>Days in Show Post
+                    =In PostsController.php
+                         public function show(string $id)
+                         {
+                              $post = Post::findOrFail($id);
+                              // $comments = Comment::where("commentable_id",$post->id)->where("commentable_type","App\Models\Posts")->orderBy("created_at","desc")->get();
+                              $comments = $post->comments()->orderBy("updated_at","desc")->get();
+                              $dayables = $post->days()->get();
+                              return view("posts.show",["post"=>$post,"comments"=>$comments,"dayables"=>$dayables]);
+                         }
+                    =In posts > show.blade.php
+                         <div class="col-md-6">
+                              <i class="fas fa-calendar fa-sm"></i>
+                              <span>
+                                   @foreach($dayables as $dayable)
+                                             {{$dayable["name"]}}, 
+                                   @endforeach
+                              </span>
+                         </div>
+
+               =>Days of Post Update
+                    three condition
+                    -remove existing days
+                    -add days
+                    -add and remove days
+
+                    =My own method 1
+                         $post->save();
+
+                         if($request["day_id"] > 0){
+                              // dd($request["day_id"]);
+                              $post->days()->sync($request["day_id"]);
+                         }else{
+                              $post->days()->detach();
+                         }
+
+                    =Chingu method
+                         if(count($request["day_id"] > 0)){
+                              $post->days()->detach();
+
+                              foreach($request["day_id"] as $key=>$value){
+                                   Dayable::create([
+                                   "day_id"=>$value,
+                                   "dayable_id"=>$post->id,
+                                   "dayable_type"=>$request["dayable_type"]
+                                   ]);
+                              }
+                         }
+
+                         *error - when no date is specified.
+                              -at code of condition, count()
+                         
+                              
+                         *code operation
+                              firstly remove all days related with the post
+                              lastly add the selected days for the post
+                              at "dayable" table
+                              -before edit
+                                   day_id    dayable_id
+                                   1         1
+                                   1         2
+                                   2         2
+                              -after edit (adding another day for post one)
+                                   day_id    dayable_id
+                                   1         2
+                                   2         2
+                                   1         1
+                                   4         1
+                    
+                    =My own method 2
+                         $post->save();
+                         
+                         $post->days()->detach();
+                         if(!empty($request["day_id"])){
+                              foreach($request["day_id"] as $key=>$value){
+                                   Dayable::create([
+                                   "day_id"=>$value,
+                                   "dayable_id"=>$post->id,
+                                   "dayable_type"=>$request["dayable_type"]
+                                   ]);
+                              }
+                         }
+                         
+                         
+                    =With JS method
+                         =In posts > edit.blade.php
+                              @foreach($days as $idx=>$day)
+                                   <div class="form-check form-switch mx-3">
+                                        <input type="checkbox" name="day_id[]" id="day_id{{$idx}}" class="form-check-input dayactions" value="{{$day->id}}" 
+                              ....
+
+                              // Start Day Action
+                              $(".dayactions").click(function(){
+                                   var checkboxs = $("input[type='checkbox']");
+                                   // console.log(checkboxs);
+                                   
+                                   var checked = checkboxs.filter(":checked").map(function(){
+                                        // return this.value;
+                                        $(this).attr("name","newday_id[]");
+                                   });
+
+                                   var unchecked = checkboxs.not(":checked").map(function(uncheck){
+                                        // return this.value;
+                                        $(this).attr("name","oldday_id[]");
+                                        
+                                        // console.log(uncheck);
+                                   });
+
+                                   // check or uncheck
+                                   // if($(this).prop('checked')){
+                                   //      // console.log("yes");
+                                   //      console.log("checked");
+                                   // }else{
+                                   //      // console.log("no");
+                                   //      console.log("unchecked");
+                                   // }
+                              });
+                              // End Day Action
+                              
+                         *seperate the days into the group of checked and unchecked.
+                         -checked group = newday_id
+                         -unchecked group = oldday_id
+
+                         =In PostsController.php
+                               $post->save();
+                              
+                              // Start Day Action
+                              // dd($request["newday_id"]); // null ,or [1 3 5]
+                              
+                                   if(isset($request["newday_id"])){
+                                        // remove all day first
+                                        foreach($request["newday_id"] as $key=>$value){
+                                             $dayable = Dayable::where("dayable_id",$post["id"])->where("dayable_type",$request["dayable_type"]);
+                                             $dayable->delete();
+                                        }
+                                        // add renewday
+                                        foreach($request["newday_id"] as $key=>$value){
+                                             $day = [
+                                             // "day_id"=>$request["day_id"][$key],
+                                             "day_id"=>$request["newday_id"][$key],
+                                             "dayable_id"=>$post["id"],
+                                             "dayable_type"=>$request["dayable_type"]
+                                             ];
+                                             Dayable::insert($day);
+                                        }
+                                   }
+                              // End Day Action
+                              -firstly remove all days related with the post
+                              -lastly add the new days for the post
+                              *no error but not working - when no date is specified.
+                              
+                              -problem solved
+                                   if(isset($request["newday_id"]) || isset($request["oldday_id"])){
+                                        // remove all days
+                                        if(!empty($request["newday_id"])){
+                                             
+                                             // add new days
+                                        }
+                                   }
+
+
+     =>Attendance Form
+          =Migration
+          php artisan make:model Attendance -m
+          
+          =crate_attendances_table.php
+               $table->date("classdate");
+               $table->unsignedBigInteger("post_id");
+               $table->string("attcode");    
+               $table->unsignedBigInteger("user_id");        
+               
+
+          php artisan migrate:status
+          php artisan migrate
+
+          php artisan make:controller AttendancesController
+
+          =In Model (Attendance.php)
+               protected $table = "attendances";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "classdate",
+                    "post_id",
+                    "attcode",
+                    "user_id"
+               ];
+
+               public function post(){
+                    return $this->belongsTo(Post::class);
+               }
+
+               public function user(){
+                    return $this->belongsTo(User::class);
+               }
+
+          =>Create/Store Attendance + index
+
+               =In AttendancesController.php
+                    public function index()
+                    {
+                         $attendances = Attendance::all();
+                         // $posts = Post::where("attshow",3)->get();
+                         $posts = DB::table("posts")->where("attshow",3)->orderBy("title","asc")->get();
+                         return view("attendances.index",compact("attendances","posts"));
+                    }
+
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "classdate" => "required|date",
+                              "post_id" => "required",
+                              "attcode" => "required"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $attendance = new attendance();
+                         $attendance->classdate = $request["classdate"];
+                         $attendance->post_id = $request["post_id"];
+                         $attendance->attcode = $request["attcode"];
+                         $attendance->user_id = $user_id;
+                         
+                         $attendance->save();
+                         return redirect(route("attendances.index"));
+                    }
+               
+               =In index.blade.php
+                    <form action="{{route('attendances.store')}}" method="POST">
+                         {{ csrf_field() }}
+
+                         <div class="row align-items-end">
+                              <div class="col-md-3">
+                                   <label for="classdate">Class Date <span class="text-danger">*</span></label>
+                                   <input type="date" name="classdate" id="classdate" class="form-control form-control-sm rounded-0" value="{{ old('classdate') }}"/>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <label for="post_id">Class <span class="text-danger">*</span></label>
+                                   <select name="post_id" id="post_id" class="form-control form-control-sm rounded-0">
+                                        @foreach($posts as $post)
+                                             {{-- <option value="{{$post['id']}}">{{$post['title']}}</option> --}}
+                                             <option value="{{$post->id}}">{{$post->title}}</option> 
+                                        @endforeach     
+                                   </select>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <label for="attcode">Attendance Code <span class="text-danger">*</span></label>
+                                   <input type="text" name="attcode" id="attcode" class="form-control form-control-sm rounded-0" value="{{ old('attcode') }}"/>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                                   <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                              </div>
+                         </div>
+                    </form>
+               
+               ** Retrieve data with DB:: method need to be careful
+                    -can only get data as object
+                    -can not get data as array
+                         *error (Cannot use object of type stdClass as array)
+
+               =>List Attendances
+
+                    =In index.blade.php
+                         <table id="mytable" class="table table-sm table-hover border">
+               
+                              <thead>
+                                   <th>No</th>
+                                   <th>Class</th>
+                                   <th>Att Code</th>
+                                   <th>By</th>
+                                   <th>Class Date</th>
+                                   <th>Created At</th>
+                                   <th>Updated At</th>
+                                   <th>Action</th>
+                              </thead>
+                    
+                              <tbody>
+                                   @foreach($attendances as $idx=>$attendance)
+                                   <tr>
+                                        <td>{{++$idx}}</td>
+                                        <td>{{$attendance->post["title"]}}</td>
+                                        <td>{{ $attendance->attcode }}</td>
+                                        <td>{{ $attendance["user"]["name"] }}</td>
+                                        <td>{{ $attendance->classdate }}</td>
+                                        <td>{{ $attendance->created_at->format('d M Y') }}</td>
+                                        <td>{{ $attendance->updated_at->format('d M Y') }}</td>
+                                        <td>
+                                             <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$attendance->id}}" data-name="{{$attendance->name}}" data-status="{{$attendance->status_id}}"><i class="fas fa-pen"></i></a>
+                                        </td>
+                                   </tr>
+                                   @endforeach
+                              </tbody>
+                    
+                         </table>
+
+          =>Edit/Update Attendance + index
+               =In index.blade.php
+                    ....
+                    <td>
+                         <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$attendance->id}}" data-post_id="{{$attendance->post_id}}" data-attcode="{{$attendance->attcode}}"><i class="fas fa-pen"></i></a>
+                    </td>
+                    ....
+                    
+                    <!-- start edit modal -->
+                         <div id="editmodal" class="modal fade">
+                              <div class="modal-dialog modal-dialog-centered">
+                                   <div class="modal-content rounded-0">
+                                        <div class="modal-header">
+                                             <h6 class="modal-title">Edit Form</h6>
+                                             <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+
+                                        <div class="modal-body">
+                                             <form id="formaction" action="" method="POST">
+                                                  {{ csrf_field() }}
+                                                  {{ method_field('PUT') }}
+                                                  <div class="row align-items-end">
+                                                       
+                                                       <div class="col-md-7 form-group">
+                                                            <label for="editpost_id">Class <span class="text-danger">*</span></label>
+                                                            <select name="post_id" id="editpost_id" class="form-control form-control-sm rounded-0">
+                                                                 @foreach($posts as $post)
+                                                                      {{-- <option value="{{$post['id']}}">{{$post['title']}}</option> --}} 
+                                                                      <option value="{{$post->id}}">{{$post->title}}</option> 
+                                                                 @endforeach     
+                                                            </select>
+                                                       </div>
+
+                                                       <div class="col-md-3">
+                                                            <label for="editattcode">Att Code <span class="text-danger">*</span></label>
+                                                            <input type="text" name="attcode" id="editattcode" class="form-control form-control-sm rounded-0" value="{{ old('classdate') }}"/>
+                                                       </div>
+                                                       
+                              
+                                                       <div class="col-md-2">
+                                                            <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                       </div>
+                                                  </div>
+                                             </form>
+                                        </div>
+
+                                        <div class="modal-footer">
+
+                                        </div>
+                                   </div>
+                              </div>
+                         </div>
+                    <!-- end edit modal -->
+                    ....
+                    @section("scripts")
+                         <script type="text/javascript">
+                              $(document).ready(function(){
+                                   // Start Edit Form
+                                   $(document).on("click",".editform",function(e){
+                                        
+                                        $("#editpost_id").val($(this).attr("data-post_id"));
+                                        $("#editattcode").val($(this).data("attcode"));
+                                        
+                                        const getid = $(this).attr("data-id");
+                                        $("#formaction").attr("action",`/attendances/${getid}`);
+
+                                        e.preventDefault();
+                                   });
+                                   // End Edit Form
+                                   
+                              });
+                         </script>
+                    @endsection
+               
+               =In AttendancesController.php
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "post_id" => "required",
+                              "attcode" => "required"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $attendance = Attendance::findOrFail($id);
+                         $attendance->post_id = $request["post_id"];
+                         $attendance->attcode = $request["attcode"];
+                         $attendance->user_id = $user_id;
+                         $attendance->save();
+                         return redirect(route("attendances.index"));
+                    }
+
+     =>Enrollment
+
+          php artisan make:model Stage -m
+
+          =Migration
+               =create_stages_table.php
+                    $table->string("name")->unique();
+                    $table->string("slug");  
+                    $table->unsignedBigInteger("status_id");
+                    $table->unsignedBigInteger("user_id");
+
+          php atisan migratel:status
+          php artisan migrate
+
+          =In Model (Stage.php)
+
+          php artisan make:controller StagesController
+
+          "stages"
+               Approved
+               Pending
+               Reject
+               Complete
+               Incomplete
+               Loading
+               Processing
+               Passed
+               Request
+               Waiting
+               Verifying
+               Verified
+
+          php artisan make:model Enroll -m 
+
+          =Migration
+               =create_enrolls_table
+                    $table->string("image")->nullable();
+                    $table->unsignedBigInteger('post_id')->comment("new class");
+                    $table->unsignedBigInteger('user_id');
+                    $table->enum('stage_id',[1,2,3])->default(2)->comment("1=Approved, 2= Pending, 3=Reject");
+                    $table->text("remark")->nullable();
+               
+               *comment() - to remark something for the column
+               =In phpmyadmin
+               -see at table 'Structure' Tab
+               -see at 'Browse' Tab
+     
+          php atisan migratel:status
+          php artisan migrate
+
+          =In Model (Enroll.php)
+               protected $table = "enrolls";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "image",
+                    "post_id",
+                    "user_id",
+                    "stage_id",
+                    "remark"
+               ];
+
+               public function stage(){
+                    return $this->belongsTo(Stage::class);
+               }
+
+               public function user(){
+                    return $this->belongsTo(User::class);
+               }
+
+          =In posts > show.blade.php
+               ....
+               <a href="{{route('posts.index')}}" class="btn btn-secondary btn-sm rounded-0">Close</a>
+               <a href="#createmodal" class="btn btn-primary btn-sm rounded-0" data-bs-toggle="modal">Enroll</a>
+               ....
+               <!-- START MODAL AREA -->
+                    <!-- start create modal -->
+                    <div id="createmodal" class="modal fade">
+                         <div class="modal-dialog modal-dialog-centered">
+                              <div class="modal-content rounded-0">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Enroll Form</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <form id="" action="{{route('categories.store')}}" method="POST" enctype="multipart/form-data">
+                                             {{ csrf_field() }}
+                                             <div class="row align-items-end">
+                                                  <div class="col-md-12 mb-3">
+                                                       <label for="image" class="gallery"><span>Choose Images</span></label>
+                                                       <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ old('image')}}" hidden/>
+                                                  </div>
+                                                  <div class="col-md-10">
+                                                       <label for="remark">Remark <span class="text-danger">*</span></label>
+                                                       <textarea type="text" name="remark" id="remark" class="form-control form-control-sm rounded-0" rows="3" placeholder="Enter Remark">{{ old('remark') }}</textarea>
+                                                  </div>
+                                                  
+                                   
+                                                  <div class="col-md-2">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                                  </div>
+
+                                                  <!-- Start Hidden Fields -->
+                                                  <input type="hidden" name="post_id" value="{{$post->id}}" />
+                                                  <!-- Start Hidden Fields -->
+                                             </div>
+                                        </form>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    <!-- end create modal -->
+               <!-- END MODAL AREA -->
+               ....
+               @section("css")....
+               @section("scripts")....
+          *form fields data can't be received at controller if not include
+               enctype="multipart/form-data" 
+          =In Controller
+               php artisan make:controller EnrollsController
+          
+          =In EnrollsController.php
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "image" => "image|mimes:jpg,jpeg,png|max:1024",
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $enroll = new Enroll();
+                    $enroll->post_id = $request["post_id"];
+                    $enroll->remark = $request["remark"];
+                    $enroll->user_id = $user_id;
+
+                    // Single Image Upload
+                    if(file_exists($request["image"])){
+                         $file = $request["image"];
+                         $fname = $file->getClientOriginalName();
+                         $imagenewname = uniqid($user_id).$enroll['id'].$fname;
+                         // $file->move(public_path("enrolls/img"),$imagenewname);
+                         $file->move(public_path("assets/img/enrolls"),$imagenewname);
+                         
+                         $filepath = "assets/img/enrolls/".$imagenewname;
+                         $enroll->image = $filepath;
+                    }    
+
+                    $enroll->save();
+                    return redirect()->back();
+               }
+
+               =>Restrict One User for only One Class
+                    =In Post.php
+                         public function checkenroll($userid){
+                              return DB::table("enrolls")->where("post_id",$this->id)->where("user_id",$userid)->exists();
+                         }
+
+                    =In PostsController.php
+                         public function show(string $id)
+                         {    
+                              $post = Post::findOrFail($id);
+                              // dd($post->checkenroll(1)); // true
+                              ....
+                         }
+                    =In posts > show.blade.php    
+                         <a href="{{route('posts.index')}}" class="btn btn-secondary btn-sm rounded-0">Close</a>
+                         @if(!$post->checkenroll($userdata->id))
+                              <a href="#createmodal" class="btn btn-primary btn-sm rounded-0" data-bs-toggle="modal">Enroll</a>
+                         @endif;    
+                         <hr/>
+                    
+                    *'Enroll' button is hidden for the already enrolled post.
+                    *'Enroll' button appear for the the post that is not enroled yet.
+
+                    *$userdata represent authenticated user.
+
+                    users
+                    name           email
+                    --------------------
+                    admin          admin@gmail.com
+                    aung aung      admin@gmail.com
+                    su su          susu@gmail.com
+                    yu yu          yuyu@gmail.com
