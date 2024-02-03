@@ -2259,6 +2259,10 @@
                          return redirect(route("attendances.index"));
                     }
 
+               *when another modify att code, modify user id will changed
+               -To solve this delete the following sentence
+                    //$attendance->user_id = $user_id;
+               
      =>Enrollment
 
           php artisan make:model Stage -m
@@ -2300,12 +2304,13 @@
                     $table->unsignedBigInteger('user_id');
                     $table->enum('stage_id',[1,2,3])->default(2)->comment("1=Approved, 2= Pending, 3=Reject");
                     $table->text("remark")->nullable();
-               
-               *comment() - to remark something for the column
-               =In phpmyadmin
-               -see at table 'Structure' Tab
-               -see at 'Browse' Tab
-     
+          
+               =>Column Comment
+                    *comment() - to remark something for the column
+                    =In phpmyadmin
+                    -see at table 'Structure' Tab
+                    -see at 'Browse' Tab
+          
           php atisan migratel:status
           php artisan migrate
 
@@ -2447,3 +2452,602 @@
                     aung aung      admin@gmail.com
                     su su          susu@gmail.com
                     yu yu          yuyu@gmail.com
+
+                    =>Log Out
+                         =Inspire layouts > navigation.blade.php 
+                              <!-- Authentication -->
+                              <form method="POST" action="{{ route('logout') }}">
+                                   @csrf
+
+                                   <x-dropdown-link :href="route('logout')"
+                                             onclick="event.preventDefault();
+                                                       this.closest('form').submit();">
+                                        {{ __('Log Out') }}
+                                   </x-dropdown-link>
+                              </form>
+
+                         =In layouts > adminleftsidebar.blade.php
+                              <!-- Start Top Sidebar -->
+                              @include("layouts.adminnavbar")
+                              <!-- End Top Sidebar -->
+
+                         =In layouts > adminnavbar.blade.php
+                              //move top side bar
+                              <!-- Authentication -->
+                               <!-- <form action="{{ route('logout')}}" method="POST" > -->
+                                   <!-- @csrf -->
+                                   <!-- <a href="{{ route('logout') }}" class="dropdown-item" onclick="event.preventDefault(); this.closest('form').submit();"><i class="fas fa-sign-out fa-sm text-muted me-2"></i>Logout</a> -->
+                                   <!-- <a href="javascript:void(0);" class="dropdown-item" onclick="event.preventDefault(); this.parentElement.submit();"><i class="fas fa-sign-out fa-sm text-muted me-2"></i>Logout</a> -->
+                              <!-- </form> -->
+
+                              <a href="javascript:void(0);" class="dropdown-item" onclick="event.preventDefault(); document.getElementById('logoutform').submit();"><i class="fas fa-sign-out fa-sm text-muted me-2"></i>Logout</a>
+                              <form id="logoutform" action="{{ route('logout') }}" method="POST" >@csrf</form>
+
+                    "students"
+                    id   regnumber      firstname      lastname,,,,        user_id
+                    1    WDF1001        Admin          Bot                 1
+                    2    WDF1002        Aung           Aung                2
+                    3    WDF1003        Su             Su                  3
+                    4    WDF1004        Yu             Yu                  4
+
+     =>Attendance <-> Student (Student ID)
+               =>My Method
+                    =In Attendance.php
+                         public function userstu(){
+                              $student = Student::where("user_id",$this->user_id)->first();
+
+                              // dd($student);
+                              // dd($student->regnumber);
+                              return $student;
+                         }
+                         // *retrieve with get() will get error
+                    =In attendances > index.blade.php
+                         ....
+                         @foreach($attendances as $idx=>$attendance)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td>{{ $attendance->userstu()->regnumber }}</td>
+               
+               =>Simplest Solution (don't recommend)
+                    =In Attendance.php
+                         public function student(){
+                              return $this->belongsTo(Student::class,"user_id");
+                         }
+                    =In attendances > index.blade.php
+                         @foreach($attendances as $idx=>$attendance)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td>{{ $attendance->student->regnumber }}</td>
+
+                    "students"
+                    id   regnumber      firstname      lastname,,,,        user_id
+                    10    WDF1001        Admin          Bot                 1
+
+                    *error (Attempt to read property "regnumber" on null)
+                    -it only work with student.id for the foreigin key of attendances.user_id.
+                    -because "attendances" table do not the student id, 1 of user_id, 1 .
+               
+               "users"
+                    id     name           email
+                    10     admin          admin@gmail.com
+                    20     aung aung      admin@gmail.com
+                    30     su su          susu@gmail.com
+                    40     yu yu          yuyu@gmail.com
+
+               "students"
+                    id   regnumber      firstname      lastname,,,,        user_id
+                    1    WDF1001        Admin          Bot                 10
+                    2    WDF1002        Aung           Aung                20
+                    3    WDF1003        Su             Su                  30
+                    4    WDF1004        Yu             Yu                  40
+
+               "attendances"
+                    id   classdate      post_id   attcode   user_id
+                    1    2023-12-02     17        AB        10
+                    ....
+                    6    2023-12-16     16        EFG       40
+               
+               =>Way 1 (Foreigh Key Table)
+                    "Attendance"   "User"         "Student"
+                    
+                    user_id        id             id
+                    post_id        name           regnumber
+                    attcode        email          firstname   
+                                   password       lastname
+                    student_id                    user_id
+
+               =>Way 2 (Table Through)
+                    Attendance -> User -> Student
+
+                    Attendance 
+                    id classdate post_id attcode user_id
+
+                    User
+                    id name email .... student_id
+
+                    Student 
+                    id   regnumber      firstname      lastname,,,,
+
+               =Method 1
+                    =In Attendance.php
+                         public function student($userid){
+                              
+                              $students = Student::where("user_id",$userid)->get();
+                              // dd($students);
+
+                              foreach($students as $student){
+                                   // dd($student);
+                                   // dd($student["regnumber"]);
+                                   return $student["regnumber"];
+                              }
+                         }
+
+                    *result ($students) - array given
+                    Illuminate\Database\Eloquent\Collection {#1431 ▼ // app\Models\Attendance.php:41
+                         #items: array:1 [▼
+                         0 => App\Models\Student {#1430 ▶}
+                         ]
+                         #escapeWhenCastingToString: false
+                    }
+                    
+                    *result ($student) ## - destructure array
+                    App\Models\Student {#1430 ▼ // app\Models\Attendance.php:44
+                         #connection: "mysql"
+                         #table: "students"
+                         #primaryKey: "id"
+                         ....
+                         #original: array:10 [▼
+                         "id" => 1
+                         "regnumber" => "WDF1001"
+                         "firstname" => "Admin"
+                         "lastname" => "Boot"
+                         "slug" => "adminboot"
+                         "remark" => "Lorem Ipsum is simply dummy text of the printing and typesetting industry."
+                         "status_id" => 1
+                         "user_id" => 1
+                         "created_at" => "2023-12-14 12:43:02"
+                         "updated_at" => "2023-12-14 12:43:02"
+                    ]
+
+                    =In attendances > index.blade.php
+                         @foreach($attendances as $idx=>$attendance)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td>{{ $attendance->student($attendance->user_id) }}</td>
+               
+               =Method 2
+                    =In Attendance.php
+                         public function student($userid){
+                              // Method 2
+                              $students = Student::where("user_id",$userid)->get()->pluck("regnumber");
+                              // dd($students);
+
+                              foreach($students as $student){
+                                   // dd($student); // "WDF1001"
+                                   return $student;
+                              }
+                         }
+
+                    *result ($students) - array given
+                    Illuminate\Support\Collection {#1422 ▼ // app\Models\Attendance.php:51
+                         #items: array:1 [▼
+                         0 => "WDF1001"
+                         ]
+                         #escapeWhenCastingToString: false
+                    }
+
+               =>Attendance Order
+                    =In AttendancesController.php
+                         public function index()
+                         {
+                              $attendances = Attendance::orderBy('updated_at','desc')->get();
+                              ....
+                         }
+                    *attendances are displayed from recent days.
+
+     =>Text Editor Plug-in    
+          'summernote'        
+          https://summernote.org/getting-started/#without-bootstrap-lite
+
+          bootstrap 4
+          bootstrap 5
+          *Without bootstrap
+               -local link
+          
+          summernote > Getting Started > Download compiled
+          Extract here - summernote-0.8.18-dist
+
+          =>At Create
+               =In posts > create.blade.php
+                    <div class="col-md-12 mb-3">
+                         <label for="content">Content <span class="text-danger">*</span></label>
+                         <textarea name="content" id="content" class="form-control form-control-sm rounded-0" rows="5" placeholder="Say Something....">{{ old('content') }}</textarea>
+                    </div>
+                    ....
+
+                    @section("css")
+                         {{-- summernote css1 js1 --}}
+                         <link href="{{ asset('assets/libs/summernote-0.8.18-dist/summernote-lite.min.css') }}" rel="stylesheet" type="text/css"/>
+                         <style type="text/css">
+                         ....
+
+                    @section("scripts")
+                         {{-- summernote css1 js1 --}}
+                         <script src="{{ asset('assets/libs/summernote-0.8.18-dist/summernote-lite.min.js') }}" type="text/javascript"></script>
+                         <script type="text/javascript">
+                         ....
+
+                              // text editor for content
+                              $('#content').summernote({
+                                   placeholder: 'Say Something....',
+                                   tabsize: 2,
+                                   height: 120,
+                                   toolbar: [
+                                        ['style', ['style']],
+                                        ['font', ['bold', 'underline', 'clear']],
+                                        ['color', ['color']],
+                                        ['para', ['ul', 'ol', 'paragraph']],
+                                        ['insert', ['link']],
+                                   ]
+                              });
+
+               
+          =>At Edit
+               =link summbernote as Create 
+
+               *Edited text will be display as format.
+
+          =>At Show
+               =http://127.0.0.1:8000/posts/19
+                    *result
+                    <h2 style="margin-bottom: 10px; font-family: DauphinPlain; font-size: 24px; line-height: 24px; color: rgb(0, 0, 0); background-color: rgb(255, 255, 255);">What is Lorem Ipsum?</h2><p><strong style="font-family: &quot;Open Sans&quot;, Arial, sans-serif; font-size: 14px; text-align: justify; background-color: rgb(255, 255, 255);">Lorem Ipsum</strong><span style="font-family: &quot;Open Sans&quot;, Arial, sans-serif; font-size: 14px; text-align: justify; background-color: rgb(255, 255, 255);">&nbsp;is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the <a href="https://google.com" target="_blank">1500s</a>
+               "phpmyadmin" > "posts" table > 'content' column
+               *html & css code are stored.
+
+               =To interpret html and css code
+                    =In posts > show.blade.php
+                         <tr>
+                              <!-- <td>{{-- $post->content --}}</td> -->
+                              <td>{!! $post->content !!}</td>
+                         </tr>
+               *other editor plug-in will use {!! !!} to understand html and css code.
+
+     =>Table Plug in
+          "DataTables"
+          https://datatables.net/
+          *cdn
+
+          *cause it is jQuery library, jQuery file must be linked first.
+
+          Full Getting Started Guide > 
+               Initialising DataTables
+
+          =In Index 
+               =In posts > index.blade.php
+                    <table id="mytable" class="table table-sm table-hover border">
+                    ....
+
+                    @section("css")
+                         <link href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css" rel="stylesheet" type="text/css" />
+                    @endsection
+                    ....
+
+                    @section("scripts")
+                    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js" type="text/javascript"></script>
+                    <script type="text/javascript">
+                         ....
+                         // for mytable
+                         //let table = new DataTable('#mytable');
+                         $("#mytable").DataTable();
+
+               *Search, Column Sorting, Pagination included
+               *search bar is for all column 
+
+          =Method 1 (JS Object)
+               let table = new DataTable('#myTable', {
+               // config options...
+               })
+
+          =Method 2 (jQuery)
+               $(document).ready( function () {
+                    $('#myTable').DataTable();
+               } );
+
+     =>Fixed footer
+          =In layouts > adminfooter.php 
+               <footer class="footers">
+          
+          =In public > dist > style.css
+               .footers{
+                    width:100%;
+
+                    position:fixed;
+                    right:0;
+                    bottom:0;
+               }
+     
+     =>Enroll <-> Student (Student ID)
+
+          =Method 1, 2
+                =In enrolls.index.blade.php
+                    <table id="mytable" class="table table-sm table-hover border">
+               
+                         <thead>
+                              <th>No</th>
+                              <th>Class</th>
+                              <th>Student Id</th>
+                              <th>Stage</th>
+                              <th>Created At</th>
+                              <th>Updated At</th>
+                              <th>Action</th>
+                         </thead>
+               
+                         <tbody>
+                              @foreach($enrolls as $idx=>$enroll)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td>{{$enroll->post["title"]}}</td>
+                                   <td>{{ $enroll->student($enroll->user_id) }}</td>
+                                   <td>{{ $enroll->stage->name }}</td>
+                                   <td>{{ $enroll->created_at->format('d M Y') }}</td>
+                                   <td>{{ $enroll->updated_at->format('d M Y') }}</td>
+                                   <td>
+                                        <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$enroll->id}}" data-post_id="{{$enroll->post_id}}" data-attcode="{{$enroll->attcode}}"><i class="fas fa-pen"></i></a>
+                                   </td>
+                              </tr>
+                              @endforeach
+                         </tbody>
+               
+                    </table>
+
+               =Enroll.php
+                    public function student($userid){
+                         
+                         // Method 1
+                         // $students = Student::where("user_id",$userid)->get();
+                         // // dd($students);
+
+                         // foreach($students as $student){
+                         //     // dd($student);
+                         //     // dd($student["regnumber"]);
+                         //     return $student["regnumber"];
+                         // }
+
+                         // Method 2
+                         $students = Student::where("user_id",$userid)->get()->pluck("regnumber");
+                         // dd($students);
+
+                         foreach($students as $student){
+                              // dd($student); // "WDF1001"
+                              return $student;
+                         }
+
+                    }
+         
+          =Method 3, 4
+               =In enrolls > index.blade.php
+                    @foreach($enrolls as $idx=>$enroll)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              <td>{{$enroll->post["title"]}}</td>
+                              {{-- <td>{{ $enroll->student($enroll->user_id) }}</td> --}}
+                              <td>{{$enroll->student()}}</td>
+                              <td>{{ $enroll->stage->name }}</td>
+                              <td>{{ $enroll->created_at->format('d M Y') }}</td>
+                              <td>{{ $enroll->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$enroll->id}}" data-post_id="{{$enroll->post_id}}" data-attcode="{{$enroll->attcode}}"><i class="fas fa-pen"></i></a>
+                              </td>
+                         </tr>
+                    @endforeach
+
+               =In Enroll.php
+                    public function student(){
+
+                         // Method 3
+                         // $students = Student::where("user_id",$this->user_id)->get();
+                         // // dd($students);
+
+                         // foreach($students as $student){
+                         //     // dd($student);
+                         //     // dd($student["regnumber"]);
+                         //     return $student["regnumber"];
+                         // }
+
+                         // Method 4
+                         $students = Student::where("user_id",$this->user_id)->get()->pluck("regnumber");
+                         // dd($students);
+
+                         foreach($students as $student){
+                              // dd($student); // "WDF1001"
+                              return $student;
+                         }
+                    }
+
+          =Method 5, 6
+                =Enroll.php
+                    public function student(){
+                         
+                         // Method 5
+                                // join(se table,sec table prikey,compare,primary table fkkey)
+                         // $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get();
+                         // // dd($students);
+
+                         // foreach($students as $student){
+                         //     // dd($student);
+                         //     return $student["regnumber"];
+                         // }
+
+                         // Method 6
+                         $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get()->pluck("regnumber");
+                         // dd($students);
+
+                         foreach($students as $student){
+                              // dd($student); // "WDF1001"
+                              return $student;
+                         }
+
+                    }
+               
+               * join(sec table, primary table fkkey,compare,sec table prikey)
+
+
+               *result - when freely joning two tables without conditions 
+                   Illuminate\Database\Eloquent\Collection {#1452 ▼ // app\Models\Enroll.php:76
+                    #items: array:4 [▼
+                    0 => App\Models\Student {#1450 ▶}
+                    1 => App\Models\Student {#1455 ▶}
+                    2 => App\Models\Student {#1456 ▶}
+                    3 => App\Models\Student {#1454 ▶}
+                    ]
+                    #escapeWhenCastingToString: false
+                    }
+               
+               *result ($student) ## - destructure array (two tables columns come out)
+               	
+                    App\Models\Student {#1449 ▼ // app\Models\Enroll.php:79
+                    #connection: "mysql"
+                    #table: "students"
+                    #primaryKey: "id"
+                    ....
+                    #original: array:15 [▼
+                         "id" => 1
+                         "regnumber" => "WDF1001"
+                         "firstname" => "Admin"
+                         "lastname" => "Boot"
+                         "slug" => "adminboot"
+                         "remark" => "Lorem Ipsum is simply dummy text of the printing and typesetting industry."
+                         "status_id" => 1
+                         "user_id" => 1
+                         "created_at" => "2023-12-12 07:27:33"
+                         "updated_at" => "2023-12-12 07:53:59"
+                         "name" => "admin"
+                         "email" => "admin@gmail.com"
+                         "email_verified_at" => null
+                         "password" => "$2y$12$xffXPm7kidQvS4CgU8LThuAgkEb5otckKTMpVJtuDmrwFsmVApqh6"
+                         "remember_token" => "4o4q9tTG60LrsI9HAxMWtCQVOH2xXgkjrOs1M9yeStdGtPmWQqOvovkApVRB"
+                    ]
+                    }
+
+          =Method 7, 8
+               public function student(){
+                    
+                    // Method 7
+                    // $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get(["users.*","students.*"]);
+                    // // dd($students);
+
+                    // foreach($students as $student){
+                    //     // dd($student);
+                    //     return $student["regnumber"];
+                    // }
+
+
+                    // Method 8
+                    $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get(["users.name","students.regnumber"])->first();
+                    //dd($students);
+                    //dd($students["regnumber"]);
+                    return $students["regnumber"];
+
+               }
+
+               *result ($students)
+               App\Models\Student {#1444 ▼ // app\Models\Enroll.php:106
+                    #connection: "mysql"
+                    #table: "students"
+                    #primaryKey: "id"
+                    ....
+                    #original: array:2 [▼
+                    "name" => "admin"
+                    "regnumber" => "WDF1001"
+                    ]        
+                    ....
+               }
+
+               -Method 7 = all columns from two table come out
+               -Method 8 = only selected columns come out
+
+          =Method 9
+               $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get(["users.name","students.regnumber"])->pluck("regnumber")->first();
+               // dd($students); // "WDF1001"
+               return $students;
+
+               *pluck should't be written at the end
+               $students = Student::join("users","users.id","=","students.user_id")->where("user_id",$this->user_id)->get(["users.name","students.regnumber"])->first()->pluck("regnumber");
+               *result ($students)
+                    Illuminate\Support\Collection {#1445 ▼ // app\Models\Enroll.php:112
+                    #items: array:4 [▼
+                    0 => "WDF1001"
+                    1 => "WDF1002"
+                    2 => "WDF1003"
+                    3 => "WDF1004"
+                    ]
+                    #escapeWhenCastingToString: false
+                    } 
+          
+          =Method 10, 11
+
+               // Method 10
+               // $students = DB::table("students")
+               //             ->join("users","users.id","=","students.user_id")
+               //             ->where("user_id",$this->user_id)
+               //             ->get(["users.name","students.regnumber"])
+               //             ->pluck("regnumber")->first();
+          
+               // // dd($students);
+               // return $students;
+
+               // Method 11
+               $students = DB::table("students")
+                              ->select("users.id","users.name","students.regnumber")
+                              ->join("users","users.id","=","students.user_id")
+                              ->where("user_id",$this->user_id)
+                              ->get()
+                              ->pluck("regnumber")->first();
+          
+               // dd($students);
+               return $students;
+
+               *result ->get()
+                    Illuminate\Support\Collection {#1446 ▼ // app\Models\Enroll.php:135
+                    #items: array:1 [▼
+                    0 => {#1444 ▼
+                         +"id": 1
+                         +"name": "admin"
+                         +"regnumber": "WDF1001"
+                    }
+                    ]
+                    #escapeWhenCastingToString: false
+                    }
+               
+     =>Link with Student 
+          =In Enroll.php
+               public function studenturl(){
+                    return Student::where("user_id",$this->user_id)->get(["students.id"])->first();
+               }
+
+          =In enrolls > index.blade.php
+
+               @foreach($enrolls as $idx=>$enroll)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              {{-- <td>{{ $enroll->student($enroll->user_id) }}</td> --}}
+                              <td><a href="{{route('students.show',$enroll->studenturl())}}">{{$enroll->student()}}</a></td>
+               ....
+
+          =>Back to Enroll From Student
+               =In students > show.blade.php
+                    <a href="javascript:void(0);" id="btn-back" class="btn btn-secondary btn-sm rounded-0">Back</a>
+                    ....
+                    @section("scripts")
+                         <script type="text/javascript">
+                              // Start Back Btn
+                                   const getbtnback = document.getElementById("btn-back");
+                                   getbtnback.addEventListener("click",function(){
+                                        // window.history.back();
+                                        window.history.go(-1);
+                                   });
+                              // End Back Btn
+                         </script>
+                    @endsection
+
+                    *go() can reach both front and back
