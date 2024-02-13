@@ -3018,6 +3018,14 @@
                     ]
                     #escapeWhenCastingToString: false
                     }
+
+           =My     
+     
+          =MyMethod
+               $student = Student::join("users","students.user_id","=","users.id")->where("users.id",$this->user_id)->get(["students.regnumber"])->first();
+               // dd($student->regnumber);
+               return $student->regnumber;
+
                
      =>Link with Student 
           =In Enroll.php
@@ -3051,3 +3059,962 @@
                     @endsection
 
                     *go() can reach both front and back
+
+     =>Student Tab Template
+          =students > show.blade.php
+               <h6>Additional Info</h6>
+               <div class="card border-0 rounded-0 shadow mb-4">
+                    <ul class="nav">
+                         <li class="nav-item">
+                              <button type="button" id="autoclick" class="tablinks" onclick="gettab(event,'follower')">Follower</button>
+                         </li>
+                         <li class="nav-item">
+                              <button type="button" class="tablinks" onclick="gettab(event,'following')">Following</button>
+                         </li>
+                         <li class="nav-item">
+                              <button type="button" class="tablinks" onclick="gettab(event,'liked')">Liked</button>
+                         </li>
+                         <li class="nav-item">
+                              <button type="button" class="tablinks" onclick="gettab(event,'remark')">Remark</button>
+                         </li>
+                    </ul>
+
+                    <div class="tab-content">
+
+                         <div id="follower" class="tab-pane">
+                              <h3>This is Home Information</h3>
+                              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+                         </div>
+
+                         <div id="following" class="tab-pane">
+                              <h3>This is Profile Information</h3>
+                              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+                         </div>
+
+                         <div id="liked" class="tab-pane">
+                              <h3>This is Contact Information</h3>
+                              <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+                         </div>
+
+                         <div id="remark" class="tab-pane">
+                              <p>{{ $student->remark }}</p>
+                         </div>
+
+                    </div>
+               </div>
+
+               ....
+               @section("css")
+                    <style type="text/css">
+                         /* Start Tag Box */
+                         .nav{
+                         display: flex;
+
+                         padding: 0;
+                         margin: 0;
+                         }
+                         .nav .nav-item{
+                         list-style-type: none;
+                         }
+                         .nav .tablinks{
+                         border: none;
+                         font-size: 16px;
+                         padding: 15px 20px;
+                         cursor: pointer;
+
+                         transition: background-color 0.3s ease-in;
+                         }
+                         .nav .tablinks:hover{
+                         background-color: #f3f3f3;
+                         }
+
+                         .nav .tablinks.active{
+                              color: blue;
+                         }
+
+                         .tab-pane{
+
+                         padding: 5px 15px;
+
+                         display: none;
+                         }
+                         /* End Tag Box */
+                    </style>
+               @endsection
+
+               @section("scripts")
+                    // Start Tag Box
+                    var gettablinks = document.getElementsByClassName('tablinks');  //HTMLCollection
+                    var gettabpanes = document.getElementsByClassName('tab-pane');
+                    // console.log(gettabpanes);
+
+                    var tabpanes = Array.from(gettabpanes);
+
+                    function gettab(evn,linkid){
+
+                    tabpanes.forEach(function(tabpane){
+                         tabpane.style.display = 'none';
+                    });
+
+                    for(var x = 0 ; x < gettablinks.length ; x++){
+                         gettablinks[x].className = gettablinks[x].className.replace(' active','');
+                    }
+
+
+                    document.getElementById(linkid).style.display = 'block';
+
+
+                    // evn.target.className += ' active';
+                    // evn.target.className = evn.target.className.replace('tablinks','tablinks active');
+                    // evn.target.classList.add('active');
+
+                    // evn.target = evn.currentTarget
+                    evn.currentTarget.className += ' active';
+
+                    }
+
+                    document.getElementById('autoclick').click();
+                    // End Tag Box
+               @endsection
+
+     =>Student Enrolls
+          =StudentController.php
+
+               public function show(string $id)
+               {
+                    $student = Student::findOrFail($id);
+
+                    // $enrolls = Enroll::where("user_id",$student["user_id"])->get();
+                    $enrolls = $student->enrolls();
+                    // dd($enrolls);
+                    return view("students.show",["student"=>$student,"enrolls"=>$enrolls]);
+               
+               }
+
+          =Student.php
+               public function enrolls(){
+                    return Enroll::where("user_id",$this->user_id)->get();
+               }
+
+          *Controller - Model 
+          -enrolls information of the student
+
+          =In students > show.blade.php
+
+                <h6>Enrolls</h6>
+               <div class="card border-0 rounded-0 shadow mb-4">
+                    <div class="card-body d-flex flex-wrap gap-3">
+                         
+                         @foreach($enrolls as $enroll)
+                         <div class="border shadow p-3 mb-3 enrollboxes">
+                              <a href="javascript:void(0);">{{ $enroll->post["title"] }}</a>
+                              <div class="text-muted">{{ $enroll->stage["name"] }}</div>
+                              <div class="text-muted">{{ date("d M Y",strtotime($enroll->created_at)) }} | {{ date("h:i:s A",strtotime($enroll->created_at)) }}</div>
+                              <div class="text-muted">{{ $enroll->updated_at->format("d M Y | h:i:s A") }} </div>
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::limit($enroll->remark,20) }}</div> --}}
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::limit($enroll->remark,20,"---") }}</div> --}}
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::of($enroll->remark)->limit(20) }}</div> --}}
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::of($enroll->remark)->words(4) }}</div> --}}
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::of($enroll->remark)->words(4,"----") }}</div> --}}
+                              {{-- <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::words($enroll->remark,4) }}</div> --}}
+                              <div class="mt-1" title="{{ $enroll->remark }}">{{ Str::words($enroll->remark,4,"----") }}</div>
+                         </div>
+                         @endforeach
+                    </div>
+               </div>
+
+          - Enroll Class
+               post() inside Enroll.php
+                    not in Student
+               
+               1.There is not post_id in students.
+               2.Get information from enrolls. "enrolls" has post_id.
+     
+     =>Own Search
+          =>By Controller
+               =In countries > index.blade.php
+                    <div class="col-md-12">
+                         <form action="" method="">
+                              <div class="row justify-content-end">
+                                   <div class="col-md-2 col-sm-6 mb-2">
+                                        <div class="input-group">
+                                             <input type="text" name="filtername" id="filtername" class="form-control form-control-sm rounded-0" placeholder="Search...."/>
+                                             <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                                        </div>
+                                   </div>
+                              </div>
+                         </form>
+                    </div>
+
+               =In CountriesController.php
+                    public function index()
+                    {
+                         // http://127.0.0.1:8000/countries?filtername=mm
+                         // dd(request("filtername")); // mm
+
+                         $countries = Country::where(function($query){
+                                   if($getname = request("filtername")){
+                                        $query->where("name","LIKE","%".$getname."%");
+                                   }
+                         })->get();
+                         // dd($countries);
+                         return view("countries.index",compact("countries"));
+                    }
+
+                    -request() - get the request form value
+                    -Countries -> where($query) = countries tables represent $query
+                         Change query based on condition. (filtername exists or not) 
+
+                    *result ($countries)
+                    Illuminate\Database\Eloquent\Collection {#1412 ▼ // app\Http\Controllers\CountriesController.php:22
+                    #items: array:1 [▼
+                    0 => App\Models\Country {#1411 ▼
+                         #connection: "mysql"
+                         #table: "countries"
+                         #primaryKey: "id"
+                         #original: array:6 [▼
+                         "id" => 1
+                         "name" => "Myanmar"
+                         "slug" => "myanmar"
+                         "user_id" => 1
+                         "created_at" => "2023-12-23 19:14:06"
+                         "updated_at" => "2023-12-23 19:14:06"
+                         ]
+                    ....
+                    }
+                    ]
+                    #escapeWhenCastingToString: false
+                    }
+
+                    http://127.0.0.1:8000/countries?filtername=th
+                    *result 
+                         Thailand
+                    
+                    http://127.0.0.1:8000/countries?filtername=
+                    *result 
+                         Myanmar
+                         Thailand
+
+               =>Get Old Search Value
+                    =In cities > index.blade.php
+
+                         <div class="col-md-12">
+                              <form action="" method="">
+                                   <div class="row justify-content-end">
+                                        <div class="col-md-2 col-sm-6 mb-2">
+                                             <div class="input-group">
+                                                  <input type="text" name="filtername" id="filtername" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('filtername') }}"/>
+                                                  <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                                             </div>
+                                        </div>
+                                   </div>
+                              </form>
+                         </div>
+
+                    =In CitiesController.php
+                         public function index()
+                         {
+                              $cities = City::where(function($query){
+                                   if($getname = request("filtername")){
+                                        $query->where("name","LIKE","%".$getname."%");
+                                   }
+                              })->get();
+                              // dd($cities);
+                              return view("cities.index",compact("cities"));
+                         }
+          
+          =>With Javascript
+               =In cities > index.blade.php
+                    <div class="input-group">
+                         <input type="text" name="filtername" id="filtername" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('filtername') }}"/>
+                         <button type="button" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                    </div>
+                    ....
+
+
+                     // Start Filter
+                    const getfilterbtn = document.getElementById("btn-search");
+                    getfilterbtn.addEventListener("click",function(e){
+                         // console.log("hay");
+
+                         const getfiltername = document.getElementById("filtername").value;
+                         const getcururl = window.location.href;
+                         
+                         // console.log(getfiltername); // search value
+                         // console.log(getcururl); // http://127.0.0.1:8000/cities?filtername=yan
+                         // console.log(getcururl.split("?")); // ['http://127.0.0.1:8000/cities', 'filtername=yan']
+                         // console.log(getcururl.split("?")[0]); // 
+                         window.location.href = getcururl.split("?")[0] + "?filtername="+getfiltername;
+
+                         e.preventDefault();
+                    });
+                    // End Filter
+
+                    *without using submit button, js send value to the current file with the url. 
+
+     =>Lite Looping Method , pluck(value,key)
+          =In RolesController.php
+               public function create()
+               {    
+                    //$statuses = Status::all(); // get all statuses
+                    $statuses = Status::whereIn("id",[3,4])->get()->pluck('name',"id");
+                    //  dd($statuses);
+                    return view("roles.create",compact("statuses"));
+               }
+
+          =In roles > create.blade.php
+               <div class="col-md-6">
+                    <label for="name">Status <span class="text-danger">*</span></label>
+                    <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                         <!-- <option value="3">On</option>
+                         <option value="4">On</option> -->
+
+                         {{-- @foreach($statuses as $status)
+                              <option value="{{$status->id}}">{{ $status->name }}</option>
+                         @endforeach
+                         --}}
+
+                         {{-- 
+                         @foreach($statuses as $id=>$name)
+                              <option value="{{ $id}}">{{ $name }}</option>
+                         @endforeach
+                         --}}
+
+                         @foreach($statuses as $idx=>$status)
+                              <option value="{{ $idx}}">{{ $status }}</option>
+                         @endforeach
+                    </select>
+               </div>
+
+          *result ($statuses)
+               Illuminate\Support\Collection {#1422 ▼ // app\Http\Controllers\RolesController.php:25
+               #items: array:2 [▼
+               "On" => 3
+               "Off" => 4
+               ]
+               #escapeWhenCastingToString: false
+          
+          *@foreach($statuses as $id=>$name) is the recommended method.
+               
+     =>Own Filter DropDown
+          =In roles > index.blade.php
+               <div class="col-md-12">
+                    <form action="" method="">
+                         <div class="row justify-content-end">
+                              <div class="col-md-2 col-sm-6 mb-2">
+                                   <div class="form-group">
+                                        <select name="filterstatus_id" id="filterstatus_id" class="form-control form-control-sm rounded-0">
+                                             <option value="" selected>Choose Status....</option>     
+                                             @foreach($filterstatuses as $id=>$name)
+                                                  <option value="{{$id}}">{{ $name }}</option>
+                                             @endforeach
+                                        </select>
+                                   </div>
+                              </div>
+                         </div>
+                    </form>
+               </div>
+               ....
+               <script type="text/javascript">
+                    // Start Filter
+                    const getfilterstatus = document.getElementById("filterstatus_id");
+                    getfilterstatus.addEventListener("click",function(e){
+                         // const getstatusid = this.value;
+                         // const getstatusid = this.options[this.selectedIndex].value;
+                         const getstatusid = this.value || this.options[this.selectedIndex].value;
+                         // console.log(getstatusid);
+
+                         let getcururl = window.location.href;
+                         // console.log(getcururl); // http://127.0.0.1:8000/cities?filtername=yan
+                         // console.log(getcururl.split("?")); // ['http://127.0.0.1:8000/cities', 'filtername=yan']
+                         // console.log(getcururl.split("?")[0]); // 
+                         
+                         window.location.href = getcururl.split("?")[0] + "?filterstatus_id="+getstatusid;
+
+                         e.preventDefault();
+                    });
+                    // End Filter
+          
+          =In RolesController.php
+               public function index()
+               {
+                    $roles = Role::where(function($query){
+                         if($statusid = request("filterstatus_id")){
+                              $query->where("status_id",$statusid);
+                         }
+                    })->get();
+                    $filterstatuses = Status::whereIn("id",[3,4])->get()->pluck('name',"id");
+                    return view("roles.index",compact("roles"),compact("filterstatuses"));
+               }
+               -it doesn't need "LIKE" Sytax because status_id can be checked directly. 
+
+          -may think 'js' is not useful for the above search feature.
+               but it is useful for the filter faeture. Because it has no button to submit form. Only js can submit form. 
+
+          =>Backend Option
+               =In roles. index.blade.php
+
+                    <select name="filterstatus_id" id="filterstatus_id" class="form-control form-control-sm rounded-0">
+                         <!-- <option value="" selected>Choose Status....</option>      -->
+                         @foreach($filterstatuses as $id=>$name)
+                              <option value="{{$id}}">{{ $name }}</option>
+                         @endforeach
+                    </select>
+
+               =In RolesController.php
+                    public function index()
+                    {
+                         $roles = Role::where(function($query){
+                              if($statusid = request("filterstatus_id")){
+                                   $query->where("status_id",$statusid);
+                              }
+                         })->get();
+                         $filterstatuses = Status::whereIn("id",[3,4])->get()->pluck('name',"id")->prepend("Choose Status","");
+                         // dd($filterstatuses);
+                         return view("roles.index",compact("roles"),compact("filterstatuses"));
+                    }
+
+                    *prepend() after pluck. Increase the array at the first. 
+
+                    *result ($filterstatuses);
+                    Illuminate\Support\Collection {#1424 ▼ // app\Http\Controllers\RolesController.php:23
+                    #items: array:3 [▼
+                    "" => "Choose Status"
+                    3 => "On"
+                    4 => "Off"
+                    ]
+                    #escapeWhenCastingToString: false
+                    }
+
+          => Get Old Filter Value
+               =In roles > index.blade.php
+
+                    <select name="filterstatus_id" id="filterstatus_id" class="form-control form-control-sm rounded-0">
+                         <!-- <option value="" selected>Choose Status....</option>      -->
+                         @foreach($filterstatuses as $id=>$name)
+                              <option value="{{$id}}" {{ $id == request('filterstatus_id') ? 'selected' : '' }}>{{ $name }}</option>
+                         @endforeach
+                    </select>
+
+     =>Using Laravel Folder Downloaded From Github
+
+          Github
+               repository > Code > 'Download Zip'
+
+          *.env and other ignores file do not include
+
+
+          composer update
+          (vpn may be needed to on)
+
+          =Create .env file
+               -copy existing .env file's content    
+          
+          php artisan serve
+
+     =>Validation Error
+          =In genders > index.blade.php
+                <form action="{{route('genders.store')}}" method="POST">
+                    {{ csrf_field() }}
+                    <div class="row align-items-end">
+                         <div class="col-md-6 form-group">
+                              <label for="name">Name <span class="text-danger">*</span></label>
+                              @error("name")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                              <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0 @error('name') is-invalid @enderror" placeholder="Enter Gender Name" value="{{ old('name') }}"/>
+                              {{-- @error("name")
+                                   <span class="invalid-feedback">{{ $message }}<span>
+                              @enderror
+                              --}}
+
+                         </div>
+          
+          "invalid-feedback" = text color red for message
+          "is-invalid" = field red border
+          Error Message = The name field is required.
+
+          *can be displayed as you like.
+          -error messagees are generally displayed under input field. 
+          
+          =In roles > create.blade.php  
+               <div class="col-md-6 mb-3">
+                    <label for="image">Image</label>
+                    <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ old('image')}}"/>
+                    @error("image")
+                         <span class="text-danger">{{ $message }}<span>
+                    @enderror
+               </div>
+
+               <div class="col-md-6 mb-3">
+                    <label for="name">Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Role Name" value="{{ old('name') }}"/>
+                    @error("name")
+                         <span class="text-danger">{{ $message }}<span>
+                    @enderror
+               </div>
+
+               <div class="col-md-6">
+                    <label for="name">Status <span class="text-danger">*</span></label>
+                    <select type="text" name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                         <option selected disabled>Choose Status</option>
+
+                         {{-- @foreach($statuses as $status)
+                              <option value="{{$status->id}}">{{ $status->name }}</option>
+                         @endforeach
+                         --}}
+
+                         {{-- 
+                         @foreach($statuses as $id=>$name)
+                              <option value="{{ $id}}">{{ $name }}</option>
+                         @endforeach
+                         --}}
+
+                         @foreach($statuses as $idx=>$status)
+                              <option value="{{ $idx}}">{{ $status }}</option>
+                         @endforeach
+                    </select>
+                    @error("status_id")
+                         <span class="text-danger">{{ $message }}<span>
+                    @enderror
+               </div>
+
+          -Error get from validation rules that are specified at the controller of the respective method.
+          -Error only occur when the input field didn't match the valudation rules.
+
+          *select box is already chosen one option. It will not get error.
+          
+
+          Error Handling Pages
+          1.Create page
+          2.Edit page
+
+     =>Laravel Pagination
+
+          =In TagsController.php
+               public function index()
+               {
+                    $tags = Tag::orderBy("id","asc")->paginate(5);
+                    $statuses = Status::whereIn("id",[3,4])->get();
+                    return view("tags.index",compact("tags","statuses"));
+               }
+               -paginate(limitnumber)
+               -retrive only limited number of rows
+               *paginate() should be placed at the last because it is the data retriever.
+
+          =In tags > index.blade.php
+               </table>
+               {{ $tags->links('pagination::bootstrap-4') }}
+               ----------------------------------------------
+               </table>
+                    {{ $tags->links() }}
+
+               *Problem 
+                    Angle Arrow Design do not align.  
+               -problem is bootstrap version
+                    project bootstrap = version 5
+               -laravel no longer support bootstrap
+                    laravel support bootstrap = version 4
+               -laravel support tailwind
+
+          http://127.0.0.1:8000/tags?page=1
+          http://127.0.0.1:8000/tags?page=2
+
+          paginate() & links() are closely connected.
+          links() generate pagination links.
+          paginate() retrieve relevant row from table.
+
+          =>Number Order
+               - No. always 1 to 5 at all pages.
+               *Number should be ordered at each pages.
+
+               =In tags > index.blade.php
+                     @foreach($tags as $idx=>$tag)
+                         <tr>
+                              {{-- <td>{{++$idx}}</td> --}}
+                              <td>{{$idx+ $tags->firstItem()}}</td>
+
+                    
+               {{$tags->firstItem()}}
+               {{-- $idx+ $tags->lastItem() --}}
+               <table id="mytable" class="table table-sm table-hover border">
+
+               firstItem() - 1, 6, 11
+               *id is added by the current page first item. 
+
+     =>Search, Filter & Pagination
+          =In CountriesController.php
+               public function index()
+               {
+                    // http://127.0.0.1:8000/countries?filtername=mm
+                    // dd(request("filtername")); // mm
+
+                    $countries = Country::where(function($query){
+                              if($getname = request("filtername")){
+                                   $query->where("name","LIKE","%".$getname."%");
+                              }
+                    })->paginate(5);
+                    // dd($countries);
+                    return view("countries.index",compact("countries"));
+               }
+     
+          =In RolesController.php
+               public function index()
+               {
+                    $roles = Role::where(function($query){
+                         if($statusid = request("filterstatus_id")){
+                              $query->where("status_id",$statusid);
+                         }
+                    })->paginate(5);
+                    $filterstatuses = Status::whereIn("id",[3,4])->get()->pluck('name',"id")->prepend("Choose Status","");
+                    // dd($filterstatuses);
+                    return view("roles.index",compact("roles"),compact("filterstatuses"));
+               }
+
+     =>Record Download Link
+
+          =Migration
+               php artisan make:model Edulink -m
+
+               =In create_edilinks_table.php
+                    $table->date("classdate");
+                    $table->unsignedBigInteger("post_id");
+                    $table->string("url");
+                    $table->unsignedBigInteger("user_id");
+
+               php artisan migrate:status
+               php artisan migrate
+
+          =php artisan make:controller EdulinksController    
+
+          =>Create New Records
+               =In EdulinksController.php
+                    public function index()
+                    {
+                         $data["edulinks"] = Edulink::orderBy("updated_at","desc")->get();
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck('title',"id");
+                         return view("edulinks.index",$data);
+                    }
+
+               =In Edulinks index.blade.php
+                    <form action="{{route('edulinks.store')}}" method="POST">
+                         {{ csrf_field() }}
+
+                         <div class="row align-items-end">
+                              <div class="col-md-3">
+                                   <label for="classdate">Class Date <span class="text-danger">*</span></label>
+                                   @error("classdate")
+                                        <span class="text-danger">{{ $message }}<span>
+                                   @enderror
+                                   <input type="date" name="classdate" id="classdate" class="form-control form-control-sm rounded-0" value="{{ old('classdate') }}"/>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <label for="post_id">Class <span class="text-danger">*</span></label>
+                                   @error("post_id")
+                                        <span class="text-danger">{{ $message }}<span>
+                                   @enderror
+                                   <select name="post_id" id="post_id" class="form-control form-control-sm rounded-0">
+                                        <option selected disabled>Choose class</option>
+                                        @foreach($posts as $id=>$title)
+                                             <option value="{{$id}}">{{$title}}</option> 
+                                        @endforeach     
+                                   </select>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <label for="url">Url <span class="text-danger">*</span></label>
+                                   @error("url")
+                                        <span class="text-danger">{{ $message }}<span>
+                                   @enderror
+                                   <input type="text" name="url" id="url" class="form-control form-control-sm rounded-0" placeholder="Enter url" value="{{ old('url') }}"/>
+                              </div>
+
+                              <div class="col-md-3">
+                                   <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                                   <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                              </div>
+                         </div>
+                    </form>
+
+          =>List All Records
+               =In edulinks > index.blade.php
+                    <table id="mytable" class="table table-sm table-hover border">
+          
+                         <thead>
+                              <th>ID</th>
+                              <th>Class</th>
+                              <th>URL</th>
+                              <th>By</th>
+                              <th>Class Date</th>
+                              <th>Created At</th>
+                              <th>Updated At</th>
+                              <th>Action</th>
+                         </thead>
+                         <tbody>
+                              @foreach($edulinks as $idx=>$edulink)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td><a href="{{route('posts.show',$edulink->post_id)}}">{{$edulink->post['title']}}</a></td>
+                                   <td><a href="#">{{ Str::limit($edulink->url,30) }}</a></td>
+                                   <td>{{ $edulink["user"]["name"] }}</td>
+                                   <td>{{ date("d M Y",strtotime($edulink->classdate)) }}</td>
+                                   <td>{{ $edulink->created_at->format('d M Y h:i A') }}</td>
+                                   <td>{{ $edulink->updated_at->format('d M Y') }}</td>
+                                   <td>
+                                        <a href="{{$edulink->url}}" class="text-primary" target="_blank" download="abc"><i class="fas fa-download"></i></a>
+                                        <a href="javascript:void(0);" class="text-info ms-2 editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$edulink->id}}" data-post_id="{{$edulink->post_id}}" data-attcode="{{$edulink->attcode}}"><i class="fas fa-pen"></i></a>
+                                   </td>
+                              </tr>
+                              @endforeach
+                         </tbody>
+               
+                    </table>
+
+               <a href="https://dlt.com/user/user1.jpg" class="text-primary" target="_blank" download="abc"><i class="fas fa-download"></i></a>
+
+               *Real world server link 
+               downlod ="abc"
+               file is download with the specified file name from download attribute.
+
+               =>Copy URL
+                    =In Edulinks > index.blade.php
+                         <td><a href="javascript:void(0);" class="link-btns" data-url="{{ $edulink->url}}" title="Copy Link">{{ Str::limit($edulink->url,30) }}</a></td>
+                         ....
+
+                         // Start link btn
+                         $(".link-btns").click(function(){
+                              var geturl = $(this).data("url");
+                              // console.log(geturl);
+                              navigator.clipboard.writeText(geturl);
+                         });
+                         // End link btn
+
+          =>Own Search & Filter
+               
+               =In edulinks > index.blade.php
+                    <form action="" method="">
+                         <div class="row justify-content-end">
+                              <div class="col-md-2 col-sm-6 mb-2">
+                                   <div class="form-group">
+                                        <select name="filter" id="filter" class="form-control form-control-sm rounded-0">
+                                             @foreach($filterposts as $id=>$name)
+                                                  <option value="{{$id}}" {{ $id == request('filter') ? 'selected' : '' }}>{{ $name }}</option>
+                                             @endforeach
+                                        </select>
+                                   </div>
+                              </div>
+
+                              <div class="col-md-2 col-sm-6 mb-2">
+                                   <div class="input-group">
+                                        <input type="text" name="search" id="search" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('filtername') }}"/>
+                                        <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                                   </div>
+                              </div>
+
+                              
+                         </div>
+                    </form>
+
+                    ....
+                    // Start Filter
+                    document.getElementById("filter").addEventListener("click",function(){
+                         let getfilterid = this.value || this.options[this.selectedIndex].value;
+                         // console.log(getid);
+                         window.location.href = window.location.href.split("?")[0]+"?filter="+getfilterid;
+                    });
+                    // End Filter
+
+               =In EdulinksController.php
+                    public function index()
+                    {
+                         // $data["edulinks"] = Edulink::orderBy("updated_at","desc")->paginate(5);
+                         $data["edulinks"] = Edulink::where(function($query){
+                              if($getfilter = request("filter")){
+                                   $query->where("post_id",$getfilter);
+                              } 
+                              if($getsearch = request("search")){
+                                   // $query->where("classdate","LIKE","%".$getsearch."%");
+                                   $query->where("classdate","LIKE","%${getsearch}%");
+                              }
+                         })->orderBy("classdate","desc")->paginate(5);
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck('title',"id");
+                         $data["filterposts"] = Post::whereIn("attshow",[3])->orderBy("title","asc")->pluck('title',"id")->prepend("Choose Class","");
+                         return view("edulinks.index",$data);
+                    }
+                    *search results based on filtered classes.
+                    =If the filter option is choosen, search classes are within the filtered class. 
+
+          =>Local Scopes in Laravel Eloquent
+               = Method 1
+                    =In Edulink.php
+                         // Define Local Scope
+                         // public function scope[name]($query){
+                         //      return $query->(method);
+                         // }
+
+                         public function scopezaclassdate($query){
+                              return $query->orderBy("classdate","desc");
+                         }
+
+                         *prefix "scope" must be included.
+
+                    =In EdulinksController.php
+                    public function index()
+                    {
+                         // $data["edulinks"] = Edulink::orderBy("updated_at","desc")->paginate(5);
+                         $data["edulinks"] = Edulink::where(function($query){
+                              if($getfilter = request("filter")){
+                                   $query->where("post_id",$getfilter);
+                              } 
+                              if($getsearch = request("search")){
+                                   // $query->where("classdate","LIKE","%".$getsearch."%");
+                                   $query->where("classdate","LIKE","%${getsearch}%");
+                              }
+                         })->zaclassdate()->paginate(5);
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck('title',"id");
+                         $data["filterposts"] = Post::whereIn("attshow",[3])->orderBy("title","asc")->pluck('title',"id")->prepend("Choose Class","");
+                         return view("edulinks.index",$data);
+                    }
+
+                    *can easily apply specific constraints to your database queries,
+
+               =Method 2
+                    =In Edulink.php
+                         public function scopefilter($query){
+                              if($getfilter = request("filter")){
+                                   $query->where("post_id",$getfilter);
+                              } 
+                              if($getsearch = request("search")){
+                                   // $query->where("classdate","LIKE","%".$getsearch."%");
+                                   $query->where("classdate","LIKE","%${getsearch}%");
+                              }
+                              return $query;
+                         }
+
+                    =In EdulinksController.php
+                         public function index()
+                         {
+                              // $data["edulinks"] = Edulink::orderBy("updated_at","desc")->paginate(5);
+                              $data["edulinks"] = Edulink::filter()->zaclassdate()->paginate(5);
+                              $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck('title',"id");
+                              $data["filterposts"] = Post::whereIn("attshow",[3])->orderBy("title","asc")->pluck('title',"id")->prepend("Choose Class","");
+                              return view("edulinks.index",$data);
+                         }  
+
+          =Inspecting Database Query In background
+                    =In EdulinksController.php
+
+                         // \DB::enableQueryLog();
+                         // $data["edulinks"] = Edulink::all();
+                         // dd( \DB::getQueryLog());
+
+                         \DB::enableQueryLog();
+                         $data["edulinks"] = Edulink::filter()->zaclassdate()->paginate(5);
+                         dd( \DB::getQueryLog());
+                         
+                         
+                         // \DB::enableQueryLog();
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck('title',"id");
+                         // dd( \DB::getQueryLog());
+                         $data["filterposts"] = Post::whereIn("attshow",[3])->orderBy("title","asc")->pluck('title',"id")->prepend("Choose Class","");
+                         return view("edulinks.index",$data);
+
+                    *result ($data["edulinks"])                        
+                    array:1 [▼ // app\Http\Controllers\EdulinksController.php:37
+                    0 => array:3 [▼
+                    "query" => "select * from `edulinks`"
+                    "bindings" => []
+                    "time" => 0.56
+                    ]
+                    ]
+                                             
+                    *result ($data["posts"])
+                    array:1 [▼ // app\Http\Controllers\EdulinksController.php:45
+                    0 => array:3 [▼
+                    "query" => "select `title`, `id` from `posts` where `attshow` = ? order by `title` asc"
+                    "bindings" => array:1 [▶]
+                    "time" => 1.48
+                    ]
+                    ]
+
+                    *result ($data["edulinks"] with pagination)
+                    array:2 [▼ // app\Http\Controllers\EdulinksController.php:41
+                    0 => array:3 [▼
+                    "query" => "select count(*) as aggregate from `edulinks`"
+                    "bindings" => []
+                    "time" => 0.74
+                    ]
+                    1 => array:3 [▼
+                    "query" => "select * from `edulinks` order by `classdate` desc limit 5 offset 0"
+                    "bindings" => []
+                    "time" => 0.66
+                    ]
+                    ]
+
+          =Multi Column Search
+               =In Edulink.php
+                    public function scopefilter($query){
+                         if($getfilter = request("filter")){
+                              $query->where("post_id",$getfilter);
+                         } 
+                         if($getsearch = request("search")){
+                              // $query->where("classdate","LIKE","%".$getsearch."%");
+                              
+                              // search by class date / created at / updated at
+                              // $query->where("classdate","LIKE","%${getsearch}%")
+                              //     ->orWhere("created_at","LIKE","%${getsearch}%")
+                              //     ->orWhere("updated_at","LIKE","%${getsearch}%");
+                              
+                              // search by class date / created at / updated at
+                              // $query->where("classdate","LIKE","%${getsearch}%");
+                              // $query->orWhere("created_at","LIKE","%${getsearch}%");
+                              // $query->orWhere("updated_at","LIKE","%${getsearch}%");
+                         
+                              $query->where("classdate","LIKE","%${getsearch}%")
+                                   ->orWhere("created_at","LIKE","%${getsearch}%")
+                                   ->orWhere("updated_at","LIKE","%${getsearch}%")
+                                   ->orWhereHas("post",function($query) use($getsearch){
+                                        $query->where("title","LIKE","%${getsearch}%");
+                                   });
+                         }
+                         return $query;
+                    }
+
+               *class at the date or match with created_at, updated_at column will be received.
+               *orWhereHas() allow to retrieve records from a table by checking specific condition in a related table.
+                    -orWhereHas(relationship,callback(){})
+                    -can search with post name in the search box insted of searching by post_id
+               *error (Undefined variable $getsearch)  
+                    -to apply $getsearch inside callback function 
+                    -use($getseaerch) is needed
+
+          =Get Old Search & Filter Values
+               =In edulink > index.blade.php
+
+                    <div class="col-md-2 col-sm-6 mb-2">
+                         <div class="form-group">
+                              <select name="filter" id="filter" class="form-control form-control-sm rounded-0">
+                                   @foreach($filterposts as $id=>$name)
+                                        <option value="{{$id}}" {{ $id == request('filter') ? 'selected' : '' }}>{{ $name }}</option>
+                                   @endforeach
+                              </select>
+                         </div>
+                    </div>
+
+                    <div class="col-md-2 col-sm-6 mb-2">
+                         <div class="input-group">
+                              <input type="text" name="search" id="search" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('search') }}"/>
+                              <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                         </div>
+                    </div>
+
+
+          =>Solving Pagination Proglem
+               =filter post
+                    filtered results pagination
+               =Switch Page 2
+                    all the values passed with url cleared and paginate all results                
+               
+
+

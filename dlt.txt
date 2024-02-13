@@ -1,9 +1,0 @@
-=>Lite Looping Method
-     pluck(,)
-=>Own Search
-     =>Controller Only
-
-          =>Get Old Search Value
-     =>With Javascript
-
-=>Own Filter Dropdown
