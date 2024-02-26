@@ -3687,7 +3687,7 @@
 
           =php artisan make:controller EdulinksController    
 
-          =>Create New Records
+          =>Create New Record
                =In EdulinksController.php
                     public function index()
                     {
@@ -3737,6 +3737,29 @@
                          </div>
                     </form>
 
+               =>Store Record
+                    =In EdulinksController.php
+                         public function store(Request $request)
+                         {
+                              $this->validate($request,[
+                                   "classdate"=>"required|date",
+                                   "post_id"=>'required',
+                                   "url"=>"required"
+                              ]);
+
+                              $user = Auth::user();
+                              $user_id = $user->id;
+
+                              $edulink = new Edulink();
+                              $edulink->classdate = $request["classdate"];
+                              $edulink->post_id = $request["post_id"];
+                              $edulink->url = $request["url"];
+                              $edulink->user_id = $user_id;
+
+                              $edulink->save();
+                              return redirect()->route("edulinks.index");
+                         }
+          
           =>List All Records
                =In edulinks > index.blade.php
                     <table id="mytable" class="table table-sm table-hover border">
@@ -4010,11 +4033,2060 @@
                     </div>
 
 
-          =>Solving Pagination Proglem
+          =>Solving Pagination Problem
                =filter post
                     filtered results pagination
                =Switch Page 2
                     all the values passed with url cleared and paginate all results                
                
+          =>Precise Search & Filter
+               
+               -above search and filter has some issue
+                    =filter post
+                    =search class date
+                    *other post contains class date is inclusive.
 
+               -to only search within filtered posts not in another post
+
+               =In Edulinks.php
+                    public function scopefilteronly($query){
+                         if($getfilter = request("filter")){
+                              $query->where("post_id",$getfilter);
+                         } 
+                         
+                         return $query;
+                    }
+
+                    public function scopesearchonly($query){
+                         
+                         if($getsearch = request("search")){
+                         
+                              $query->where("classdate","LIKE","%${getsearch}%")
+                                   ->orWhere("created_at","LIKE","%${getsearch}%")
+                                   ->orWhere("updated_at","LIKE","%${getsearch}%")
+                                   ->orWhereHas("post",function($query) use($getsearch){
+                                        $query->where("title","LIKE","%${getsearch}%");
+                                   });
+                         }
+                         return $query;
+                    }
+
+               =In EdulinksController.php
+                    // \DB::enableQueryLog();
+                    // $data["edulinks"] = Edulink::filter()->zaclassdate()->paginate(5);
+                    // dd( \DB::getQueryLog());
+
+                    // \DB::enableQueryLog();
+                    $data["edulinks"] = Edulink::filteronly()->searchonly()->zaclassdate()->paginate(5);
+                    // dd( \DB::getQueryLog());
+
+               *result ($data["edulinks"])
+                    =before split 
+                         array:2 [▼ // app\Http\Controllers\EdulinksController.php:41
+                         0 => array:3 [▼
+                         "query" => "select count(*) as aggregate from `edulinks` where (`post_id` = ? and `classdate` LIKE ? or `created_at` LIKE ? or `updated_at` LIKE ? or exists (select * from `posts` where `edulinks`.`post_id` = `posts`.`id` and `title` LIKE ?)) ◀"
+                         "bindings" => array:5 [▶]
+                         "time" => 0.7
+                         ]
+                         1 => array:3 [▼
+                         "query" => "select * from `edulinks` where (`post_id` = ? and `classdate` LIKE ? or `created_at` LIKE ? or `updated_at` LIKE ? or exists (select * from `posts` where `edulinks`.`post_id` = `posts`.`id` and `title` LIKE ?)) order by `classdate` desc limit 5 offset 0 ◀"
+                         "bindings" => array:5 [▶]
+                         "time" => 0.59
+                         ]
+                         ]
+
+                    =after split
+                         array:2 [▼ // app\Http\Controllers\EdulinksController.php:45
+                         0 => array:3 [▼
+                         "query" => "select count(*) as aggregate from `edulinks` where `post_id` = ? and (`classdate` LIKE ? or `created_at` LIKE ? or `updated_at` LIKE ? or exists (select * from `posts` where `edulinks`.`post_id` = `posts`.`id` and `title` LIKE ?)) ◀"
+                         "bindings" => array:5 [▶]
+                         "time" => 0.65
+                         ]
+                         1 => array:3 [▼
+                         "query" => "select * from `edulinks` where `post_id` = ? and (`classdate` LIKE ? or `created_at` LIKE ? or `updated_at` LIKE ? or exists (select * from `posts` where `edulinks`.`post_id` = `posts`.`id` and `title` LIKE ?)) order by `classdate` desc limit 5 offset 0 ◀"
+                         "bindings" => array:5 [▶]
+                         "time" => 0.51
+                         ]
+                         ]
+
+          =>Reset Search & Filter 
+               =In edulinks > index.blade.php
+                    <div class="input-group">
+                         <input type="text" name="search" id="search" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('search') }}"/>
+                         <button type="button" id="btn-clear" class="btn btn-secondary btn-sm"><i class="fas fa-sync"></i></button>
+                         <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                    </div>
+                    ....
+
+                    // Start Clear btn
+                    document.getElementById("btn-clear").addEventListener("click",function(){
+                         const getfilter = document.getElementById("filter");
+                         const getsearch = document.getElementById("search");
+
+                         getfilter.selectedIndex = 0;
+                         getsearch.value = "";
+
+                         window.location.href = window.location.href.split("?")[0];
+                    });
+                    // End Clear btn
+
+          =>Edit Record
+               =In edulinks > index.blade.php
+                    <!-- start edit modal -->
+                    <div id="editmodal" class="modal fade">
+                         <div class="modal-dialog modal-dialog-centered">
+                              <div class="modal-content rounded-0">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Edit Form</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <form id="formaction" action="" method="POST">
+                                             {{ csrf_field() }}
+                                             {{ method_field('PUT') }}
+                                             <div class="row align-items-end">
+
+                                                  <div class="col-md-6">
+                                                       <label for="editclassdate">Class Date<span class="text-danger">*</span></label>
+                                                       <input type="date" name="editclassdate" id="editclassdate" class="form-control form-control-sm rounded-0" />
+                                                  </div>
+                                                  
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="editpost_id">Class <span class="text-danger">*</span></label>
+                                                       <select name="editpost_id" id="editpost_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($posts as $id=>$title)
+                                                                 <option value="{{$id}}">{{$title}}</option> 
+                                                            @endforeach     
+                                                       </select>
+                                                  </div>
+
+                                                  <div class="col-md-12">
+                                                       <label for="editurl">URL<span class="text-danger">*</span></label>
+                                                       <input type="text" name="editurl" id="editurl" class="form-control form-control-sm rounded-0" />
+                                                  </div>
+
+                                                  <div class="col-md-12 d-flex justify-content-end mt-2">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    <!-- end edit modal -->
+                    ....
+                    // Start Edit Form
+                    $(document).on("click",".editform",function(e){
+                         
+                         $("#editclassdate").val($(this).data("classdate"));
+                         $("#editpost_id").val($(this).data("post"));
+                         $("#editurl").val($(this).data("url"));
+                         
+                         const getid = $(this).attr("data-id");
+                         $("#formaction").attr("action",`/edulinks/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+               
+               =In EdulinksController.php
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "editclassdate"=>"required|date",
+                              "editpost_id"=>'required',
+                              "editurl"=>"required"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $edulink = Edulink::findOrFail($id);
+                         $edulink->classdate = $request["editclassdate"];
+                         $edulink->post_id = Str::slug($request["editpost_id"]);
+                         $edulink->url = $request["editurl"];
+                         $edulink->user_id = $user_id;
+
+                         $edulink->save();
+                         return redirect(route("edulinks.index"));
+                    }
+
+                    *error message at crreate fields (The classdate field is required. The post id field is required. The url field is required.)
+                    $this->validate($request,[
+                         "classdate"=>"required|date",
+                         "post_id"=>'required',
+                         "url"=>"required"
+                    ]);
+
+                    *validate() verify form field name. Not database column name.
+
+          =>Success Message With Alert Box
+               =>Create Message
+                    =In EdulinksController.php
+                         public function store(Request $request)
+                         {
+                              ....
+                              $edulink->save();
+                              //    return redirect()->route("edulinks.index");
+                              // return redirect()->route("edulinks.index")->with("success","New Link Created");
+
+                              session()->flash("success","New Link Created!!");
+                              return redirect()->route("edulinks.index");
+                         }
+
+                    =In edulinks > index.blade.php
+                          @if($getsuccess = session("success"))
+                              <div class="alert alert-success rounded-0">{{ $getsuccess }}</div>
+                         @endif
+                         <form action="{{route('edulinks.store')}}" method="POST">
+
+               =Update Message
+                    =In EdulinksController.php
+                         public function update(Request $request, string $id)
+                         {
+                              ....
+
+                              $edulink->save();
+                              // return redirect(route("edulinks.index"));
+                              // return redirect()->route("edulinks.index")->with("success","Update Successfully");
+                              
+                              session()->flash("success","Update Successfully!!");
+                              return redirect()->route("edulinks.index");
+                         }
+
+                    =In edulinks > index.blade.php
+
+                         {{-- @if($getsuccess = session("success"))
+                              <div class="alert alert-success rounded-0">{{ $getsuccess }}</div>
+                              @endif
+                         --}}
+
+                         @if(session("success"))
+                              <div class="alert alert-success rounded-0">{{ session("success") }}</div>
+                         @endif
+
+               -After the new record is created, system display create message to user.
+               -After the record is updated, system display create message to user.
+                    *message is displyed at the same location, because they use same variable name.
+                    *Upon reload, the message disappear.
+
+               *allows to attach data to the redirect response, making it accessible on the subsequent request.
+
+               *The with() method is used to flash data to the session, meaning it stores the data temporarily for the next request and then removes it.
+                    with(key,value)
+                    -delete the data immediately after accessing.
+
+          =>Delete Record
+               =With jQuery
+                    =In edulinks > index.blade.php
+                    <td>
+                         <a href="{{$edulink->url}}" class="text-primary" target="_blank" download="abc"><i class="fas fa-download"></i></a>
+                         <a href="javascript:void(0);" class="text-info ms-2 editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$edulink->id}}" data-classdate="{{$edulink->classdate}}" data-post="{{$edulink->post_id}}" data-url="{{$edulink->url}}"  ><i class="fas fa-pen"></i></a>
+                         <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx + $edulinks->firstItem()}}"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                    <form id="formdelete-{{ $idx + $edulinks->firstItem() }}" class="" action="{{route('edulinks.destroy',$edulink->id)}}" method="POST">
+                         @csrf
+                         @method("DELETE")
+                    </form>
+               
+                    ....
+                    // Start Delete Item
+                    $(".delete-btns").click(function(){
+                         // console.log('hay');
+               
+                         var getidx = $(this).data("idx");
+                         // console.log(getidx);
+
+                         if(confirm(`Are you sure !!! you want to Delete ${getidx} ?`)){
+                              $('#formdelete-'+getidx).submit();
+                              return true;
+                         }else{
+                              false;
+                         }
+                    });
+                    // End Delete Item
+
+                    =In EdulinksController.php
+                         public function destroy(string $id)
+                         {
+                              $edulink = Edulink::findOrFail($id);
+                              $edulink->delete();
+
+                              session()->flash("success","Delete Successfully!!");
+                              return redirect()->back();
+                         }
+
+                    *links() and firstItem() work together with the paginate() from controller.
+                         *error 
+                              if controller retrieve row with all() and get()
+                    
+                    *The edulinks is already paginated.
+                         -it can't simply use the $idx. If use, it do not match the number between target number and actual number.
+
+               =With JS
+                    var deletebtns = document.querySelectorAll(".delete-btns");
+                    deletebtns.forEach(function(deletebtn){
+                         deletebtn.addEventListener("click",function(){
+                              var getidx = this.getAttribute("data-idx");
+                              console.log(getidx);
+
+                              if(confirm(`Are you sure !!! you want to Delete ${getidx} ?`)){
+                                   document.getElementById('formdelete-'+getidx).submit();
+                                   return true;
+                              }else{
+                                   false;
+                              }
+                         });
+                    });
+
+          =>Auto show/hide Reset Button
+               =In edulinks > index.blade.php
+                    ....
+                    // Start Autoshow Btn Clear
+                    const autoshowbtn = function(){
+                         let getbtnclear = document.getElementById("btn-clear");
+                         let geturlquery = window.location.search; // ?filter=16&search=09
+                         // console.log(geturlquery); 
+                         let pattern = /[?&]search=/;
+
+                         if(pattern.test(geturlquery)){
+                              getbtnclear.style.display ="block";
+                         }else{
+                              getbtnclear.style.display ="none";
+                         }
+                    }
+                    autoshowbtn();
+                    // End Autoshow Btn Clear
+     
+     =>My Contact
+          =Migration
+               php artisan make:model Relative -m
+
+               =create_relatives_table.php
+                    $table->string("name")->unique();
+                    $table->string("slug");
+                    $table->unsignedBigInteger("status_id");
+                    $table->unsignedBigInteger("user_id");
+
+               php artisan make:model Contact -m 
+
+               =create_contacts_table.php
+                    $table->string("firstname");
+                    $table->string("lastname")->nullable();
+                    $table->string("birthday")->nullable();
+                    $table->unsignedBigInteger("relative_id")->nullable();
+                    $table->foreignId("user_id")->constrained(
+                         table:"users",
+                         indexName:"contacts_users_id"
+                    )->onUpdate("cascade")->onDelete("cascade");
+
+               *foreign key link 
+                    -not to add if the main entity is not exist
+
+
+                    onUpdate("cascade")
+                    onDelete("cascade")
+                    -ensures the correctness of the reference even when the primary table values are modified or deleted
+
+               php artisan migrate:status
+               php artisan migrate
+
+
+          "Relatives"
+               Mother
+               Father
+               Parent
+               Brother
+               Sister
+               Son
+               Daughter
+               Child
+               Friend
+               Spouse
+               Partner
+               Assistant
+               Manager
+               Other
+               Sweet Heart
+
+          php artisan make:controller RelativesController
+          php artisan make:controller ContactsController
+
+          =>Create & Store Contacts
+               =In contacts > index.blade.php
+                    <!-- start create modal -->
+                    <div id="createmodal" class="modal fade">
+                         <div class="modal-dialog modal-dialog-centered">
+                              <div class="modal-content rounded-0">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Create Form</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <form id="{{route('contacts.store')}}" action="" method="POST">
+                                             {{ csrf_field() }}
+                                             <div class="row align-items-end">
+                                                  <div class="col-md-6">
+                                                       <label for="firstname">First Name <span class="text-danger">*</span></label>
+                                                       <input type="text" name="firstname" id="firstname" class="form-control form-control-sm rounded-0" placeholder="Enter First Name" value="{{ old('firstname') }}"/>
+                                                  </div>
+
+                                                  <div class="col-md-6">
+                                                       <label for="lastname">Last Name</label>
+                                                       <input type="text" name="lastname" id="lastname" class="form-control form-control-sm rounded-0" placeholder="Enter Last Name" value="{{ old('lastname') }}"/>
+                                                  </div>
+
+                                                  <div class="col-md-6">
+                                                       <label for="birthday">Birthday</label>
+                                                       <input type="date" name="birthday" id="birthday" class="form-control form-control-sm rounded-0" value="{{ old('birthday') }}"/>
+                                                  </div>
+                                                  
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="relative_id">Relative</label>
+                                                       <select name="relative_id" id="relative_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($relatives as $id=>$name)
+                                                                 <option value="{{$id}}">{{ $name }}</option>
+                                                            @endforeach     
+                                                       </select>
+                                                  </div>
+                                                  
+                         
+                                                  <div class="col d-flex justify-content-end mt-2">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    <!-- end create modal -->
+
+               =In ContactsController.php
+                    public function index()
+                    {
+                         $data["contacts"] = Contact::all();
+                         $relatives = Relative::orderBy("id","asc")->pluck("name","id")->prepend("Choose relative","");
+                         return view("contacts.index",compact("relatives"),$data);
+                    }
+               
+               *pluck() automatically sort a-z
+               -to sort as database row, use orderBy() by sorting id in asc 
+
+
+               =In ContactsController.php
+                    public function store(Request $request)
+                    {
+                         $this->validate($request,[
+                              "firstname" => "required|min:3|max:50",
+                              "lastname"=>"max:50",
+                              "birthday"=>"nullable",
+                              "relative_id"=>"nullable"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $contact = new Contact();
+                         $contact->firstname = $request["firstname"];
+                         $contact->lastname = $request["lastname"];
+                         $contact->birthday = $request["birthday"];
+                         $contact->relative_id = $request["relative_id"];
+                         $contact->user_id = $user_id;
+
+                         $contact->save();
+                         
+                         session()->flash("success","New Contact Created");
+                         return redirect(route("contacts.index"));
+                    }
+
+          =>List All Contacts
+               =In contacts > index.blade.php
+                    <table id="mytable" class="table table-sm table-hover border">
+               
+                         <thead>
+                              <th>ID</th>
+                              <th>First Name</th>
+                              <th>Last Name</th>
+                              <th>Birthday</th>
+                              <th>Relative</th>
+                              <th>By</th>
+                              <th>Created At</th>
+                              <th>Updated At</th>
+                              <th>Action</th>
+                         </thead>
+               
+                         <tbody>
+                              @foreach($contacts as $idx=>$contact)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td>{{$contact->firstname}}</td>
+                                   <td>{{$contact->lastname}}</td>
+                                   <td>{{ date("d M Y",strtotime($contact->birthday)) }}</td>
+                                   <td>{{ $contact["relative"]["name"] }}</td>
+                                   <td>{{ $contact["user"]["name"] }}</td>
+                                   <td>{{ $contact->created_at->format('d M Y') }}</td>
+                                   <td>{{ $contact->updated_at->format('d M Y') }}</td>
+                                   <td>
+                                        <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$contact->id}}" data-name="{{$contact->name}}" data-status="{{$contact->status_id}}"><i class="fas fa-pen"></i></a>
+                                        <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                                   </td>
+                                   <form id="formdelete-{{ $idx }}" class="" action="{{route('contacts.destroy',$contact->id)}}" method="POST">
+                                        @csrf
+                                        @method("DELETE")
+                                   </form>
+                              </tr>
+                              @endforeach
+                         </tbody>  
+                    </table>
+               
+          
+               "contacts"
+               id   firstname      lastname       birthday       relative_id
+               2    Zaw            Myo            NULL           NULL
+
+               *error
+               Trying to access array offset on value of type null
+
+               {{ dd(date("d M Y",strtotime(""))); }} 
+               "01 Jan 1970"
+               
+               =In contacts > index.blade.php
+
+                    <td>{{ $contact->birthday ? date("d M Y",strtotime($contact->birthday)) : "" }}</td>
+                    <td>{{ $contact->relative_id ? $contact["relative"]["name"] : "" }}</td>
+                    
+                    *empty shown at the table column.
+          
+          =>Delete Contact
+               public function destroy(string $id)
+               {
+                    $contact = Contact::findOrFail($id);
+                    $contact->delete();
+                    session()->flash("info","Delete Successfully");
+                    return redirect()->back();
+               }
+               
+          =>toastr Notification
+
+               https://github.com/CodeSeven/toastr
+
+
+               CDNs > 
+               Minified
+                    //cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js
+                    //cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css
+               
+               =>Usage
+
+                    Other Options > 
+
+               =In adminheader.blade.php
+                    <!-- toastr css1 js1 -->
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+
+               =In adminfooter.blade.php
+                    <!-- toastr css1 js1 -->
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" type="text/javascript"></script>
+                    
+                    <script> 
+                         
+                         @if(session()->has("success"))
+                              toastr.success('{{ session()->get("success") }}', 'Successful')
+                         @endif
+
+                         @if(session()->has("info"))
+                              toastr.info('{{ session()->get("info") }}', 'Information')
+                         @endif
+
+                         // =>Display all validation errors 
+                         @if($errors)
+                              @foreach($errors->all() as $error)
+                                   toastr.error('{{$error}}', 'Warning!')
+                              @endforeach
+                         @endif
+                    </script>
+
+                    *all pages can access success message from session and then display to user.
+                    =contact create 
+                    =contact delete 
+                    =contact validation errors
+
+                    =posts validation errors
+
+                    *blade codes inside javascript <script></script> 
+
+                    =>Seperate blade code and js code
+                         =>Session method
+                              =>Adding toastr Options
+                                   =In adminfooter.blade.php
+                                        <!-- toastr css1 js1 -->
+                                        <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" type="text/javascript"></script>
+                                        <script>
+                                             toastr.options = {
+                                                  "progressBar":true,
+                                                  "closeButton":true
+                                             };
+                                        </script> 
+
+                                             @if(Session::has("success"))
+                                                  <script>toastr.success('{{ session()->get("success") }}', 'Successful')</script>
+                                             @endif
+
+                                             @if(session()->has("info"))
+                                                  <script>toastr.info('{{ session()->get("info") }}', 'Information')</script>
+                                             @endif
+
+                                             @if($errors)
+                                                  @foreach($errors->all() as $error)
+                                                       <script>toastr.error('{{$error}}', 'Warning!',{timeOut:1000})</script>
+                                                  @endforeach
+                                             @endif
+
+          =>Edit Contact 
+               =In index.blade.php
+                    <td>
+                         <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$contact->id}}" data-firstname="{{$contact->firstname}}" data-lastname="{{$contact->lastname}}" data-birthday="{{$contact->birthday}}" data-relative="{{$contact->relative_id}}"><i class="fas fa-pen"></i></a>
+                         <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+                    ....
+                    <!-- start edit modal -->
+                    <div id="editmodal" class="modal fade">
+                         <div class="modal-dialog modal-dialog-centered">
+                              <div class="modal-content rounded-0">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Edit Form</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <form id="formaction" action="" method="POST">
+                                             {{ csrf_field() }}
+                                             {{ method_field('PUT') }}
+                                             <div class="row align-items-end">
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="editfirstname">First Name <span class="text-danger">*</span></label>
+                                                       <input type="text" name="firstname" id="editfirstname" class="form-control form-control-sm rounded-0"/>
+                                                  </div>
+
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="editlastname">Last Name <span class="text-danger">*</span></label>
+                                                       <input type="text" name="lastname" id="editlastname" class="form-control form-control-sm rounded-0"/>
+                                                  </div>
+
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="editbirthday">Birthday<span class="text-danger">*</span></label>
+                                                       <input type="date" name="birthday" id="editbirthday" class="form-control form-control-sm rounded-0"/>
+                                                  </div>
+                                             
+                                                  
+                                                  <div class="col-md-6 form-group">
+                                                       <label for="editrelative_id">Relative</label>
+                                                       <select name="relative_id" id="editrelative_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($relatives as $id=>$name)
+                                                                 <option value="{{$id}}">{{$name}}</option>
+                                                            @endforeach       
+                                                       </select>
+                                                  </div>
+                                                  
+                         
+                                                  <div class="col d-flex justify-content-end mt-2">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    <!-- end edit modal -->
+                    ....
+                    // Start Edit Form
+                    $(document).on("click",".editform",function(e){
+                         
+                         $("#editfirstname").val($(this).attr("data-firstname"));
+                         $("#editlastname").val($(this).attr("data-lastname"));
+                         $("#editbirthday").val($(this).attr("data-birthday"));
+                         $("#editrelative_id").val($(this).attr("data-relative"));
+                         
+                         const getid = $(this).data("id");
+                         $("#formaction").attr("action",`/contacts/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+
+               =In ContactsController.php
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "firstname" => "required|min:3|max:50",
+                              "lastname"=>"max:50",
+                              "birthday"=>"nullable",
+                              "relative_id"=>"nullable"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $contact = Contact::findOrFail($id);
+                         $contact->firstname = $request["firstname"];
+                         $contact->lastname = $request["lastname"];
+                         $contact->birthday = $request["birthday"];
+                         $contact->relative_id = $request["relative_id"];
+                         $contact->user_id = $user_id;
+                         $contact->save();
+
+                         session()->flash("success","Update Successfully");
+                         return redirect(route("contacts.index"));
+                    }
+
+          =>Setting Default to Laravel Pagination
+               =In app > Providers > AppServiceProvider.php
+                    use Illuminate\Pagination\Paginator;
+
+                    public function boot(): void
+                    {
+                         View::composer('*',function($view){
+                              $view->with("userdata",Auth::user());
+                         });
+
+                         Paginator::useBootstrapFive();
+                    }
+
+               =In contacts > index.blade.php
+                    {{ $contacts->links() }}
+                    {{-- $contacts->links("pagination::bootstrap-4") --}}
+                    {{-- $contacts->links("pagination::bootstrap-5") --}}
+               
+          =>Contact Search & Filter + Pagination
+               =In contacts > index.blade.php
+                    <div class="col-md-12">
+                         <form action="" method="">
+                              <div class="row justify-content-end">
+                                   <div class="col-md-2 col-sm-6 mb-2">
+                                        <div class="form-group">
+                                             <select name="filter" id="filter" class="form-control form-control-sm rounded-0">
+                                                  @foreach($relatives as $id=>$name)
+                                                       <option value="{{$id}}" {{ $id == request('filter') ? 'selected' : '' }}>{{ $name }}</option>
+                                                  @endforeach
+                                                  
+                                             </select>
+                                        </div>
+                                   </div>
+
+                                   <div class="col-md-2 col-sm-6 mb-2">
+                                        <div class="input-group">
+                                             <input type="text" name="search" id="search" class="form-control form-control-sm rounded-0" placeholder="Search...." value="{{ request('search') }}"/>
+                                             <button type="button" id="btn-clear" class="btn btn-secondary btn-sm"><i class="fas fa-sync"></i></button>
+                                             <button type="submit" id="btn-search" class="btn btn-secondary btn-sm"><i class="fas fa-search"></i></button>
+                                        </div>
+                                   </div>
+
+                                   
+                              </div>
+                         </form>
+                    </div>
+                    ....
+                    </table>
+                    {{ $contacts->links() }}
+                    {{-- $contacts->appends(request()->only("filter","search"))->links() --}}
+
+                    ....
+                    <script type="text/javascript">
+                         // Start Filter
+                         document.getElementById("filter").addEventListener("click",function(){
+                              let getfilterid = this.value || this.options[this.selectedIndex].value;
+                              // console.log(getid);
+                              window.location.href = window.location.href.split("?")[0]+"?filter="+getfilterid;
+                         });
+                         // End Filter
+
+                         // Start Clear btn
+                         document.getElementById("btn-clear").addEventListener("click",function(){
+                              const getfilter = document.getElementById("filter");
+                              const getsearch = document.getElementById("search");
+
+                              getfilter.selectedIndex = 0;
+                              getsearch.value = "";
+
+                              window.location.href = window.location.href.split("?")[0];
+                         });
+                         // End Clear btn
+
+                         // Start Autoshow Btn Clear
+                         const autoshowbtn = function(){
+                              let getbtnclear = document.getElementById("btn-clear");
+                              let geturlquery = window.location.search; // ?filter=16&search=09
+                              // console.log(geturlquery); 
+                              let pattern = /[?&]search=/;
+
+                              if(pattern.test(geturlquery)){
+                                   getbtnclear.style.display ="block";
+                              }else{
+                                   getbtnclear.style.display ="none";
+                              }
+                         }
+                         autoshowbtn();
+                         // End Autoshow Btn Clear
+
+                    **have to appends() both 'filter' and 'search' query
+                         if not, pagination will not correctly work. It will start from the orignal url not including filtered and searched query.
+
+               =In Contact.php     
+                    public function scopefilteronly($query){
+                         if($getfilter = request("filter")){
+                              $query->where("relative_id",$getfilter);
+                         } 
+                         
+                         return $query;
+                    }
+
+                    public function scopesearchonly($query){
+                         
+                         if($getsearch = request("search")){
+                              // search by firstname / lastname / birthday / relative name or WhereHas(relation,callback)
+                              $query->where("firstname","LIKE","%${getsearch}%")
+                                   ->orWhere("lastname","LIKE","%${getsearch}%")
+                                   ->orWhere("birthday","LIKE","%${getsearch}%")
+                                   ->orWhereHas("relative",function($query) use($getsearch){
+                                        $query->where("name","LIKE","%${getsearch}%");
+                                   });
+                         }
+                         return $query;
+                    }
+
+                    public function scopezafirstname($query){
+                         return $query->orderBy("firstname","asc");
+                    }
+
+               =In ContactsController.php
+
+                    public function index()
+                    {
+                         // $data["contacts"] = Contact::paginate(5);
+                         $data["contacts"] = Contact::filteronly()->searchonly()->zafirstname()->paginate(5)->withQueryString();
+                         $relatives = Relative::orderBy("id","asc")->pluck("name","id")->prepend("Choose relative","");
+                         return view("contacts.index",compact("relatives"),$data);
+                    }
+
+                    *withQueryString() to include all the query string at the end of url.
+
+     =>Breradcrumb & Auto page title
+
+               {{-- <p>{{ \Request::root() }}<p> --}}            {{-- http://127.0.0.1:8000 --}}
+               {{-- <p>{{ \Request::fullURL() }}<p> --}}          {{-- http://127.0.0.1:8000/edulinks?filter=4&search=16 --}}
+               {{-- <p>{{ \Request::url() }}<p> --}}              {{-- http://127.0.0.1:8000/edulinks (not including query) --}}
+               {{-- <p>{{ \Request::getRequestUri() }}<p> --}}    {{-- /edulinks?filter=4&search=16 ( include all url and query behind domain /host name ) --}}
+               {{-- <p>{{ \Request::getPathInfo() }}<p> --}}      {{-- /edulinks ( include all url behind domain /host name but not including query ) --}}
+               {{-- <p>{{ \Request::path() }}<p> --}}             {{-- posts/1/edit ( include all url behind domain /host name but not including query ) --}}
+                                   
+
+               {{-- <p>{{ request()->root() }}<p> --}}             {{-- http://127.0.0.1:8000 --}}
+               {{-- <p>{{ request()->fullURL() }}<p> --}}          {{-- http://127.0.0.1:8000/edulinks?filter=4&search=16 --}}
+               {{-- <p>{{ request()->url() }}<p> --}}              {{-- http://127.0.0.1:8000/edulinks (not including query) --}}
+               {{-- <p>{{ request()->getRequestUri() }}<p> --}}    {{-- /edulinks?filter=4&search=16 ( include all url and query behind domain /host name ) --}}
+               {{-- <p>{{ request()->getPathInfo() }}<p> --}}      {{-- /edulinks ( include all url behind domain /host name but not including query ) --}}
+               {{-- <p>{{ request()->path() }}<p> --}}             {{-- posts/1/edit ( include all url behind domain /host name but not including query ) --}}
+                                        
+               {{-- /////////////////////////////////////////////////////////////////// --}}
+
+               {{-- <p>{{ url()->full() }}<p> --}}                {{-- http://127.0.0.1:8000/edulinks?filter=4&search=16 --}}
+               {{-- <p>{{ url()->current() }}<p> --}}             {{-- http://127.0.0.1:8000/edulinks (not including query) --}}
+               {{-- <p>{{ url()->previous() }}<p> --}}            {{-- http://127.0.0.1:8000/edulinks?filter=4&search=16 (get full url but it is the last url request not current) --}}
+
+          =Breadcrumb Format 
+               Home / Recent / Current
+
+          =In adminindex.blade.php
+               <!-- Start Inner Content Area -->
+               <div class="row">
+                    {{-- <h5>@yield("caption")</h5> --}}
+                    {{--<h6>{{ucfirst(Request::path()) }}</h6> --}}
+
+                    <nav>
+                         <ol class="breadcrumb">
+                              <li class="breadcrumb-item"><a href="{{ \Request::root() }}"><i class="fas fa-home"></i></a></li>
+                              <li class="breadcrumb-item"><a href="{{ url()->previous() }}">{{ Str::title(preg_replace("/[[:punct:]]+[[:alnum:]]+/","",str_replace(Request::root()."/","",url()->previous()))) }}</a></li>
+                              <li class="breadcrumb-item active">{{ucfirst(Request::path()) }}</li>
+                         </ol>
+                    </nav>
+
+                    
+                    @yield("content")
+               </div>
+               <!-- End Inner Content Area -->
+          
+          *Steps of removing previous url 
+          <!-- http://127.0.0.1:8000/edulinks?filter=4&search=16 -->
+          {{-- str_replace(Request::root()."/","",url()->previous()) --}}
+          <!-- =remove primary domain name with / -->
+          
+          <!-- edulinks?filter=4&search=16 -->
+          {{-- preg_replace("/[[:punct:]]+[[:alnum:]]+/","",str_replace(Request::root()."/","",url()->previous())) --}}
+          <!-- =remove all query string -->
+          
+          <!-- edulinks -->
+          {{-- Str::title(preg_replace("/[[:punct:]]+[[:alnum:]]+/","",str_replace(Request::root()."/","",url()->previous()))) --}}
+
+
+          *URL Circle
+          http://127.0.0.1:8000/posts <-> Edulinks
+          http://127.0.0.1:8000/edulinks?filter=20&search=8 <-> Posts
+
+
+          *URL conflit
+               http://127.0.0.1:8000/posts
+               http://127.0.0.1:8000/posts/1
+
+               <- (back to the previous posts lists)
+               Home / Posts / Posts
+
+               =Click previous Posts
+               Home / Posts / Posts/1
+
+     =>Leaves
+          php artisan make:model Leave -m
+
+          =In create_leaves_table.php
+               $table->unsignedBigInteger("post_id");
+               $table->date("startdate");
+               $table->date("enddate");
+               $table->unsignedBigInteger("tag");
+               $table->string("title");
+               $table->longText("content");
+               $table->string("image")->nullable();
+               $table->enum('stage_id',[1,2,3])->default(2)->comment("1=Approved, 2= Pending, 3=Reject");
+               $table->unsignedBigInteger("authorize_id")->nullable();
+               $table->unsignedBigInteger("user_id");
+
+          php artisan migrate:status
+          php artisan migrate
+
+          php artisan make:controller LeavesController
+
+          =>Create & Store Leave
+               =In leaves > index.blade.php
+                    <form action="/posts" method="POST" enctype="multipart/form-data">
+                         @csrf
+
+                         <div class="row">
+
+                              <div class="col-md-4">
+
+                                   <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                             <label for="image" class="gallery"><span>Choose Images</span></label>
+                                             <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ old('image')}}" hidden/>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                             <label for="startdate">Start Date <span class="text-danger">*</span></label>
+                                             <input type="date" name="startdate" id="startdate" class="form-control form-control-sm rounded-0" value="{{ old('startdate') }}"/>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                             <label for="enddate">End Date <span class="text-danger">*</span></label>
+                                             <input type="date" name="enddate" id="enddate" class="form-control form-control-sm rounded-0" value="{{ old('enddate') }}"/>
+                                        </div>
+                                        
+                                   </div>
+                                   
+                              </div>
+
+                              <div class="col-md-8">
+                                   <div class="row">
+                                        
+                                        <div class="col-md-12 mb-3">
+                                             <label for="title">Title <span class="text-danger">*</span></label>
+                                             <input type="text" name="title" id="title" class="form-control form-control-sm rounded-0" placeholder="Enter Post Title" value="{{ old('title') }}"/>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                             <label for="post_id">Class <span class="text-danger">*</span></label>
+                                             <select name="post_id" id="post_id" class="form-control form-control-sm rounded-0">
+                                             <option selected disabled value="">Choose Class</option>     
+                                                  @foreach($posts as $id=>$name)
+                                                       <option value="{{$id}}">{{ $name }}</option>
+                                                  @endforeach
+                                             </select>
+                                   
+                                        </div>
+     
+                                        <div class="col-md-6 mb-3">
+                                             <label for="tag">Tag <span class="text-danger">*</span></label>
+                                             <select name="tag" id="tag" class="form-control form-control-sm rounded-0">
+                                                  <option selected disabled value="">Choose authorize person</option>     
+                                                  
+                                                  @foreach($tags as $id=>$name)
+                                                       <option value="{{$id}}">{{ $name }}</option>
+                                                  @endforeach
+                                             </select>
+                                   
+                                        </div>
+
+                                        <div class="col-md-12 mb-3">
+                                             <label for="content">Content <span class="text-danger">*</span></label>
+                                             <textarea name="content" id="content" class="form-control form-control-sm rounded-0" rows="5" placeholder="Say Something....">{{ old('content') }}</textarea>
+                                        </div>
+                                        
+
+                                        <div class="col-md-12 d-flex justify-content-end align-items-end">
+                                                  <a href="{{route('posts.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                                                  <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                        </div>
+                                   </div>
+                              </div>
+
+                              
+                         </div>
+                    </form>
+
+               =In LeavesController.php
+                    public function create()
+                    {    
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck("title","id");
+                         $data["tags"] = User::orderBy("name","asc")->get()->pluck("name","id");
+
+                         return view("leaves.create",$data);
+                    }     
+
+                    *tag person should be the person who has admin role. Future project iteration should implement this needs.
+
+               =In LeavesController.php
+                    public function store(LeaveRequest $request)
+                    {
+                         // $this->validate($request,[
+                         //     "post_id" => "required",
+                         //     "startdate" => "required",
+                         //     "enddate" => "required",
+                         //     "tag" => "required",
+                         //     "title" => "required|max:50",
+                         //     "content" => "required",
+                         //     "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                         // ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         $leave = new Leave();
+                         $leave->post_id = $request["post_id"];
+                         $leave->startdate = $request["startdate"];
+                         $leave->enddate = $request["enddate"];
+                         $leave->tag = $request["tag"];
+                         $leave->title = $request["title"];
+                         $leave->content = $request["content"];
+                         $leave->user_id = $user_id;
+
+                         // Single Image Upload
+                         if(file_exists($request["image"])){
+                              $file = $request["image"];
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$leave['id'].$fname;
+                              // $file->move(public_path("leaves/img"),$imagenewname);
+                              $file->move(public_path("assets/img/leaves"),$imagenewname);
+                              
+                              $filepath = "assets/img/leaves/".$imagenewname;
+                              $leave->image = $filepath;
+                         }    
+                         $leave->save();
+                         
+                         session()->flash("success","New Leave Created");
+                         return redirect(route("leaves.index"));
+                    }
+
+          =>Validation with Request file
+               php artisan make:request LeaveRequest
+
+               =Original LeaveRequest.php
+                    <?php
+
+                    namespace App\Http\Requests;
+
+                    use Illuminate\Foundation\Http\FormRequest;
+
+                    class LeaveRequest extends FormRequest
+                    {
+                         /**
+                              * Determine if the user is authorized to make this request.
+                              */
+                         public function authorize(): bool
+                         {
+                              return false;
+                         }
+
+                         /**
+                              * Get the validation rules that apply to the request.
+                              *
+                              * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+                              */
+                         public function rules(): array
+                         {
+                              return [
+                                   //
+                              ];
+                         }
+                    }
+
+               =In app > Http > Requests > LeaveRequest.php
+                    public function authorize(): bool
+                    {
+                         return true;
+                    }
+
+                    public function rules(): array
+                    {
+                         return [
+                                   "post_id" => "required",
+                                   "startdate" => "required",
+                                   "enddate" => "required",
+                                   "tag" => "required",
+                                   "title" => "required|max:50",
+                                   "content" => "required",
+                                   "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                              ];
+                    }
+
+               *result ( authorize() - return false; )
+               403 | THIS ACTION IS UNAUTHORIZED.
+
+               *Validate Request should only be used when there are many validation rules.
+                    - should not seperate validate request when validation rules a few of lines. 
+
+               =>Default Validation Message
+
+                    *result (create a leave without filling any fields.)
+                         The content field is required.
+                         The title field is required.
+                         The tag field is required.
+                         The enddate field is required.
+                         The startdate field is required.
+                         The post id field is required.
+
+                    *First validation error is displayed at the bottom.
+                    -User do not know the post id field. She know class. 
+
+               =>Changing the name of attributes in error message
+                    =In LeaveRequest.php
+                         public function attributes(){
+                              return [
+                                   "post_id" => "class name",
+                                   "startdate" => "start date",
+                                   "enddate" => "end date",
+                                   "tag" => "authorize person",
+                              ]; 
+                         }
+                    *result (create a leave without filling any fields.)
+                         The content field is required.
+                         The title field is required.
+                         The authorize person field is required.
+                         The end date field is required.
+                         The start date field is required.
+                         The class name field is required.
+
+                    *only change the attribute name not the whole message.
+                    *Prove 
+                         "post_id" => "class name is required",
+
+                         The class name is required field is required.z
+
+               =>Customizing Validtaion error message in Request File
+                    -use in strict validation rules
+                    
+                    =In LeaveRequest.php
+                         public function messages(){
+                              return [
+                                   "post_id.required" => "class name can't be empty",
+                                   "startdate.required" => "start date can't be empty",
+                                   "enddate.required" => "end date can't be empty",
+                                   "tag.required" => "authorize person must be choose",
+                              ];
+                         }
+
+                    *result (create a leave without filling any fields.)
+                         The content field is required.
+                         The title field is required.
+                         authorize person must be choose
+                         end date can't be empty
+                         start date can't be empty
+                         class name can't be empty
+
+               =>Customizing Validation in controller
+                    -use in loose validation rules
+
+                    =In DaysController.php
+                         public function store(Request $request)
+                         {
+                              $this->validate($request,[
+                                   "name" => "required|max:50|unique:days",
+                                   "status_id" => "required|in:3,4",
+                              ],[
+                                   "name.required"=>"Day Name is required"
+                              ]);
+
+                              $user = Auth::user();
+                              $user_id = $user->id;
+
+                              $day = new Day();
+                              $day->name = $request["name"];
+                              $day->slug = Str::slug($request["name"]);
+                              $day->status_id = $request["status_id"];
+                              $day->user_id = $user_id;
+                              $day->save();
+                              return redirect(route("days.index"));
+                         }
+          
+          =>Edit & Update Leave
+               =In leaves > edit.blade.php
+                    <form action="/leaves/{{$leave->id}}" method="POST" enctype="multipart/form-data">
+                         @csrf
+                         @method("PUT")
+
+                         <div class="row">
+
+                              <div class="col-md-4">
+
+                                   <div class="row">
+                                        <div class="col-md-12 mb-3">
+
+                                             <div class="row">
+                                                  <div class="col-md-6 text-sm-center">
+                                                       <img src="{{asset($leave->image)}}" width="200" alt="{{$leave->title}}"/>
+                                                  </div>
+                                                  <div class="col-md-6">
+                                                       <label for="image" class="gallery"><span>Choose Images</span></label>
+                                                       <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ old('image',$leave->image) }}" hidden/>
+                                                  </div>
+                                             </div>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                             <label for="startdate">Start Date <span class="text-danger">*</span></label>
+                                             <input type="date" name="startdate" id="startdate" class="form-control form-control-sm rounded-0" value="{{ old('startdate',$leave->startdate) }}"/>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                             <label for="enddate">End Date <span class="text-danger">*</span></label>
+                                             <input type="date" name="enddate" id="enddate" class="form-control form-control-sm rounded-0" value="{{ old('enddate',$leave->enddate) }}"/>
+                                        </div>
+                                   </div>
+                                   
+                              </div>
+
+                              <div class="col-md-8">
+                                   <div class="row">
+                                        
+                                        <div class="col-md-12 mb-3">
+                                             <label for="title">Title <span class="text-danger">*</span></label>
+                                             <input type="text" name="title" id="title" class="form-control form-control-sm rounded-0" placeholder="Enter leave Title" value="{{ old('title',$leave->title) }}"/>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                             <label for="post_id">Class <span class="text-danger">*</span></label>
+                                             <select name="post_id" id="post_id" class="form-control form-control-sm rounded-0">
+                                                  @foreach($posts as $id=>$name)
+                                                       <option value="{{$id}}"
+                                                            @if($id === $leave["post_id"])
+                                                                 selected
+                                                            @endif
+                                                       >{{ $name }}</option>
+                                                  @endforeach
+                                             </select>
+                                        </div>
+
+                                        <div class="col-md-6">
+                                             <label for="tag">Tag <span class="text-danger">*</span></label>
+                                             <select name="tag" id="tag" class="form-control form-control-sm rounded-0">
+                                                  @foreach($tags as $id=>$name)
+                                                       <option value="{{$id}}"
+                                                            @if($id === $leave["tag"])
+                                                                 selected
+                                                            @endif
+                                                       >{{ $name }}</option>
+                                                  @endforeach
+                                             </select>
+                                        </div>
+
+
+                                        <div class="col-md-12 mb-3">
+                                             <label for="content">Content <span class="text-danger">*</span></label>
+                                             <textarea name="content" id="content" class="form-control form-control-sm rounded-0" rows="5" placeholder="Say Something....">{{$leave->content}}</textarea>
+                                        </div>                                   
+
+                                        <div class="col-md-12 d-flex justify-content-end align-items-end">
+                                             <div class="">
+                                                  <a href="{{route('leaves.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                                                  <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                             </div>
+                                        </div>
+                                   </div>
+                              </div>
+
+                              
+                         </div>
+                    </form>
+
+               =In LeavesController.php
+                    public function edit(string $id)
+                    {
+
+                         $data["leave"] = Leave::findOrFail($id);
+
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck("title","id");
+                         $data["tags"] = User::orderBy("name","asc")->get()->pluck("name","id");
+
+                         return view("leaves.edit",$data);
+                    }
+
+                    public function update(LeaveRequest $request, string $id)
+                    {
+                         // $this->validate($request,[
+                         //     "post_id" => "required",
+                         //     "startdate" => "required",
+                         //     "enddate" => "required",
+                         //     "tag" => "required",
+                         //     "title" => "required|max:50",
+                         //     "content" => "required",
+                         //     "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                         // ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $leave = Leave::findOrFail($id);
+                         $leave->post_id = $request["post_id"];
+                         $leave->startdate = $request["startdate"];
+                         $leave->enddate = $request["enddate"];
+                         $leave->tag = $request["tag"];
+                         $leave->title = $request["title"];
+                         $leave->content = $request["content"];
+
+
+                         // Remove Old Image
+                         if($request->hasFile("image")){
+                              $path = $leave->image;
+
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+
+                         // Single Image Update
+                         if($request->hasFile("image")){
+                              $file = $request->file("image");
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$leave['id'].$fname;
+                              $file->move(public_path("assets/img/leaves"),$imagenewname);
+                              
+                              $filepath = "assets/img/leaves/".$imagenewname;
+                              $leave->image = $filepath;
+                         }    
+
+                         $leave->save();
+                         session()->flash("success","Update Successfully");
+
+                         return redirect(route("leaves.index"));
+                    }
+
+          =>Two Request Files
+               =Create 2 Request Files for create & edit
+
+               -validation rules are not the exactly same
+                    1. form field attributes changes (firstname,editfirstname) 
+                    2. rules are differents according to the situation (create column unique do not need id but edit column need id)
+               
+               *There are too many files making messy project. 
+
+          =>Incorporate validation ruels in one request file
+
+               =In LeaveRequest.php
+                    public function authorize(): bool
+                    {
+
+                         // dd($this->method()); 
+                         return true;
+                    }
+
+                    public function rules(): array
+                    {
+                         // return [
+                         //     "post_id" => "required",
+                         //     "startdate" => "required",
+                         //     "enddate" => "required",
+                         //     "tag" => "required",
+                         //     "title" => "required|max:50",
+                         //     "content" => "required",
+                         //     "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                         // ];
+                         if($this->method() == "POST"){
+                              return [
+                                   "post_id" => "required",
+                                   "startdate" => "required",
+                                   "enddate" => "required",
+                                   "tag" => "required",
+                                   "title" => "required|max:50",
+                                   "content" => "required",
+                                   "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                              ];
+                         }else{
+                              return [
+                                   "post_id" => "required",
+                                   "startdate" => "required",
+                                   "enddate" => "required",
+                                   "tag" => "required",
+                                   "title" => "required|max:50",
+                                   "content" => "required",
+                                   "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                              ];
+                         }
+                         
+                    }
+
+               
+               *result (create and edit leave)                    
+                    "POST" // app\Http\Requests\LeaveRequest.php:14  
+                    "PUT" // app\Http\Requests\LeaveRequest.php:15
+
+          =>List all leaves
+               =In LeavesController.php
+                    public function index()
+                    {
+                         $leaves = Leave::all();
+                         return view("leaves.index",compact("leaves"));
+                    }
+
+               =In leaves > index.blade.php
+                    <table id="mytable" class="table table-sm table-hover border">
+     
+                         <thead>
+                              <th>No</th>
+                              <th>Student Id</th>
+                              <th>Class</th>
+                              <th>Start Date</th>
+                              <th>End Date</th>
+                              <th>Tag</th>
+                              <th>Stage</th>
+                              <th>By</th>
+                              <th>Created At</th>
+                              <th>Updated At</th>
+                              <th>Action</th>
+                         </thead>
+               
+                         <tbody>
+                              @foreach($leaves as $idx=>$leave)
+                              <tr>
+                                   <td>{{++$idx}}</td>
+                                   <td><a href="{{ route('students.show',$leave->studenturl()) }}">{{ $leave->student($leave->user_id) }}</a></td>
+                                   <td><a href="{{ route('posts.show',$leave->post_id) }}"> {{ $leave->post["title"] }}</a></td>
+                                   <td>{{ $leave->startdate }}</td>
+                                   <td>{{ $leave->enddate }}</td>
+                                   <td>{{ $leave->tagperson["name"] }}</td>
+                                   <td>{{ $leave->stage["name"] }}</td>
+                                   <td>{{ $leave->user["name"] }}</td>
+                                   <td>{{ $leave->created_at->format('d M Y') }}</td>
+                                   <td>{{ $leave->updated_at->format('d M Y') }}</td>
+                                   <td>
+                                        <a href="{{ route('leaves.edit',$leave->id) }}" class="text-info"><i class="fas fa-pen"></i></a>
+                                        <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                                   </td>
+                                   <form id="formdelete-{{ $idx }}" class="" action="{{route('leaves.destroy',$leave->id)}}" method="POST">
+                                        @csrf
+                                        @method("DELETE")
+                                   </form>
+                              </tr>
+                              @endforeach
+                         </tbody>
+               
+                    </table>
+
+               =In Leave.php
+
+                    class Leave extends Model
+                    {
+                         use HasFactory;
+                         protected $table = "leaves";
+                         protected $primaryKey = "id";
+                         protected $fillable = [
+                              "post_id",
+                              "startdate",
+                              "enddate",
+                              "tag",
+                              "title",
+                              "content",
+                              "image",
+                              "stage_id",
+                              "authorize_id",
+                              "user_id",
+                         ];
+
+                         public function user(){
+                              return $this->belongsTo(User::class);
+                         }
+
+                         public function post(){
+                              return $this->belongsTo(Post::class);
+                         }
+
+                         public function stage(){
+                              return $this->belongsTo(Stage::class);
+                         }
+
+                         public function student($userid){
+                              
+                              $students = Student::where("user_id",$userid)->get()->pluck("regnumber");
+
+                              foreach($students as $student){
+                                   return $student;
+                              }
+                         }
+
+                         public function studenturl(){
+                              return Student::where("user_id",$this->user_id)->get(["students.id"])->first();
+                         }
+
+                         public function tagperson(){
+                              return $this->belongsTo(User::class,"tag");
+                         }
+                    }
+
+          =>Show leave
+               =In LeavesController.php
+                    public function show(string $id)
+                    {
+                         $leave = Leave::findOrFail($id);
+                         
+                         return view("leaves.show",["leave"=>$leave]);
+                    }
+               =In index.blade.php
+                    <td>
+                         <a href="{{ route('leaves.show',$leave->id) }}" class="text-primary"><i class="fas fa-book-reader"></i></a>
+                         <a href="{{ route('leaves.edit',$leave->id) }}" class="text-info ms-2"><i class="fas fa-pen"></i></a>
+                         <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                    </td>
+               =In show.blade.php
+                    <div class="col-md-4">
+                         <h6>Info</h6>
+                         <div class="card border-0 rounded-0 shadow">
+                              <div class="card-body">
+                                   <div class="d-flex flex-column align-items-center mb-3">
+                                        <div class="h5 mb-1">{{ $leave->title }} </div>
+                                        <div class="text-muted">
+                                             <span>{{ $leave["stage"]["name"] }}</span>
+                                        </div>
+                                        <img src="{{ asset($leave->image) }}" class="" alt="{{$leave->title}}" width="200"/>
+                                   </div>
+
+                                   <div class="mb-5">
+                                       
+
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto">
+                                                  <i class="fas fa-user"></i>
+                                             </div>
+                                             <div class="col ps-3">
+                                                  <div class="row">
+                                                       <div class="col">
+                                                            <div class="">Authorize</div>
+                                                       </div>
+                                                       <div class="col-auto">
+                                                            <div class="">{{ $leave["user"]["name"] }}</div>
+                                                       </div>
+                                                  </div>
+                                             </div>
+                                        </div>
+
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto">
+                                                  <i class="fas fa-calendar-alt fa-sm"></i>
+                                             </div>
+                                             <div class="col ps-3">
+                                                  <div class="row">
+                                                       <div class="col">
+                                                            <div class="">Created</div>
+                                                       </div>
+                                                       <div class="col-auto">
+                                                            <div class="">{{date('d M Y',strtotime($leave->created_at))}} | {{date('h:i:s A',strtotime($leave->created_at))}}</div>
+                                                       </div>
+                                                  </div>
+                                             </div>
+                                        </div>
+
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto">
+                                                  <i class="fas fa-edit fa-sm"></i>
+                                             </div>
+                                             <div class="col ps-3">
+                                                  <div class="row">
+                                                       <div class="col">
+                                                            <div class="">Updated</div>
+                                                       </div>
+                                                       <div class="col-auto">
+                                                            <div class="">{{date('d M Y h:i:s A',strtotime($leave->updated_at))}}</div>
+                                                       </div>
+                                                  </div>
+                                             </div>
+                                        </div>
+                                   </div>
+
+
+                                   <div class="mb-5">
+                                        <p class="text-small text-muted text-uppercase mb-2">Contact Info</p>
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto me-2">
+                                                  <i class="fas fa-calender-alt"></i>
+                                             </div>
+                                             <div class="col">Sample Data</div>
+                                        </div>
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto me-2">
+                                                  <i class="fas fa-calender-alt"></i>
+                                             </div>
+                                             <div class="col">Sample Data</div>
+                                        </div>
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto me-2">
+                                                  <i class="fas fa-calender-alt"></i>
+                                             </div>
+                                             <div class="col">Sample Data</div>
+                                        </div>
+                                        <div class="row g-0 mb-2">
+                                             <div class="col-auto me-2">
+                                                  <i class="fas fa-calender-alt"></i>
+                                             </div>
+                                             <div class="col">Sample Data</div>
+                                        </div>
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+
+                    <div class="col-md-8">
+                         
+
+                         <h6>Additional Info</h6>
+                         <div class="card border-0 rounded-0 shadow mb-4">
+                              <ul class="nav">
+                                   <li class="nav-item">
+                                        <button type="button" id="autoclick" class="tablinks" onclick="gettab(event,'content')">Content</button>
+                                   </li>
+                              </ul>
+
+                              <div class="tab-content">
+
+                                   <div id="content" class="tab-pane">
+                                        <p>{!! $leave->content !!}</p>
+                                   </div>
+
+                                   
+
+                              </div>
+                         </div>
+                    </div>
+               
+          =>Auto Select Today
+               =In LeavesController.php
+                    public function create()
+                    {    
+                         $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck("title","id");
+                         $data["tags"] = User::orderBy("name","asc")->get()->pluck("name","id");
+                         $data["gettoday"] = Carbon::today()->format("Y-m-d"); // get today // "2024-02-26"
+                         // dd($data["gettoday"]);
+                         return view("leaves.create",$data);
+                    }
+
+                         *result (Carbon object)
+                         Illuminate\Support\Carbon @1708882200 {#1459 ▼ // app\Http\Controllers\LeavesController.php:32
+                         #endOfTime: false
+                         #startOfTime: false
+                         #constructedObjectId: "00000000000005b30000000000000000"
+                         #localMonthsOverflow: null
+                         #localYearsOverflow: null
+                         #localStrictModeEnabled: null
+                         #localHumanDiffOptions: null
+                         #localToStringFormat: null
+                         #localSerializer: null
+                         #localMacros: null
+                         #localGenericMacros: null
+                         #localFormatFunction: null
+                         #localTranslator: null
+                         #dumpProperties: array:3 [▶]
+                         #dumpLocale: null
+                         #dumpDateProperties: null
+                         date: 2024-02-26 00:00:00.0 Asia/Yangon (+06:30)
+                         }
+
+               =In leaves > create.blade.php
+                    <div class="col-md-6 mb-3">
+                         <label for="startdate">Start Date <span class="text-danger">*</span></label>
+                         <input type="date" name="startdate" id="startdate" class="form-control form-control-sm rounded-0" value="{{ old('startdate',$gettoday) }}"/>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                         <label for="enddate">End Date <span class="text-danger">*</span></label>
+                         <input type="date" name="enddate" id="enddate" class="form-control form-control-sm rounded-0" value="{{ old('enddate',$gettoday) }}"/>
+                    </div>
+
+                    *laravel send day with "Y-m-d" format. UI automatically change the date into "m/d/Y".
+                    *old()
+                         Even thought validation error occur, the form valules will be as user specified values, improving UX.
+                         User's values will not be removed.
+                    *old(user value, default value)
+                         When there is no error, default value will be shown.
+
+
+     =>API Switch to change on, off in UI
+          =In TypesController.php
+               public function typestatus(Request $request){
+                    $type = Type::findOrFail($request["id"]);
+                    $type->status_id = $request["status_id"];
+                    $type->save();
+
+                    return response()->json(["success"=>"Status Change Successfully"]);
+               }
+               *added method should write after the CRUD methods.
+               *response() is for message to the client. In javascript it can be used in many ways. Alert respoonse text or other.
+
+          php artisan route:list
+
+          GET|HEAD        types types.index › TypesController@index  
+          POST            types types.store › TypesController@store  
+          GET|HEAD        types/create types.create › TypesControl…  
+          GET|HEAD        types/{type} types.show › TypesControlle…  
+          PUT|PATCH       types/{type} types.update › TypesControl…  
+          DELETE          types/{type} types.destroy › TypesContro…  
+          GET|HEAD        types/{type}/edit types.edit 
+
+          *The added method is not inclusive.
+          *Needed to register route for the method.
+
+          =>In Web.php
+               Route::resource("types",TypesController::class);
+               Route::get("/typesstatus",[TypesController::class,"typestatus"]);
+
+               php artisan route:list
+
+               GET|HEAD        typesstatus .......................................................................... TypesController@typestatus
+
+          =In types > index.blade.php
+               <td>
+                    <div class="form-checkbox form-switch">
+                         <input type="checkbox" class="form-check-input change-btn" {{  $type->status_id === 3 ? 'checked' : '' }} data-id="{{ $type->id }}" />
+                    </div>
+               </td>
+               ....
+               //Start change-btn
+               $(".change-btn").change(function(){
+                    var getid = $(this).data("id");
+                    // console.log(getid); // 1 2
+
+                    var setstatus = $(this).prop("checked") === true ? 3 : 4;
+                    // console.log(setstatus); // 3 4
+
+                     $.ajax({
+                         url:"typesstatus",
+                         type:"GET",
+                         dataType:"json",
+                         data:{"id":getid,"status_id":setstatus},
+                         success:function(response){
+                              console.log(response); // {success: 'Status Change Successfully'}
+                              console.log(response.success); // Status Change Successfully
+                         }
+                    });
+               });
+               // End change btn
+
+               jQuery fullpackage is aleady connected.
+               jQuery has lite file for only ajax request.
+
+          =>Stage on/off
+               =In StagesController.php
+                    public function typestatus(Request $request){
+                         $stage = Stage::findOrFail($request["id"]);
+                         $stage->status_id = $request["status_id"];
+                         $stage->save();
+
+                         return response()->json(["success"=>"Stage Change Successfully"]);
+                    }
+               
+               =In stages > index.blade.php
+                    <td>
+                         <div class="form-check form-switch">
+                              <input type="checkbox" class="form-check-input change-btn" {{ $stage->status_id === 3 ? "checked" : "" }}  data-id="{{ $stage->id }}"/>
+                         </div>
+                    </td>
+                    ....
+
+                     //Start change-btn
+                    $(".change-btn").change(function(){
+                         var getid = $(this).data("id");
+                         // console.log(getid); // 1 2
+
+                         var setstatus = $(this).prop("checked") === true ? 3 : 4;
+                         // console.log(setstatus); // 3 4
+
+                         $.ajax({
+                              url:"stagesstatus",
+                              type:"GET",
+                              dataType:"json",
+                              data:{"id":getid,"status_id":setstatus},
+                              success:function(response){
+                                   console.log(response); // {success: 'Status Change Successfully'}
+                                   console.log(response.success); // Status Change Successfully
+                              }
+                         });
+                    });
+                    // End change btn
+
+               ****Even Though status change in form switch, status is not yet change in edit form. It will only change in next reload.
+
+     =>Notification Feature
+          https://laravel.com
+          Search Box > Notifications
+
+          https://laravel.com/docs/10.x/notifications
+
+          #Mail Notifications 
+          #Database Notifications
+          #Broadcast Notifications
+          #SMS Notifications
+          #Slack Notifications (Developer's platform)
+
+          =>Tag Person Notification     
+               -retrieve and display the relevant notifications of the tagged person
+
+               #Database Notifications
+               =>Step1: 
+                    php artisan notifications:table
+                    php artisan migrate
+
+                    *need to run for the first time
+                    
+                    =>Notification migrations
+                         public function up(): void
+                         {
+                              Schema::create('notifications', function (Blueprint $table) {
+                                   $table->uuid('id')->primary();
+                                   $table->string('type');
+                                   $table->morphs('notifiable');
+                                   $table->text('data');
+                                   $table->timestamp('read_at')->nullable();
+                                   $table->timestamps();
+                              });
+                         }
+                    =>phpmyadmin
+                         "notifications"
+                         id	type	notifiable_type	notifiable_id	data	read_at	created_at	updated_at	
+
+               =>Setp 2
+                    #Generating Notifications
+                         php artisan make:notification LeaveNotify
+
+                    app\Notifications\LeaveNotify.php
+
+                    =>Original LeaveNotify.php
+                         <?php
+
+                         namespace App\Notifications;
+
+                         use Illuminate\Bus\Queueable;
+                         use Illuminate\Contracts\Queue\ShouldQueue;
+                         use Illuminate\Notifications\Messages\MailMessage;
+                         use Illuminate\Notifications\Notification;
+
+                         class LeaveNotify extends Notification
+                         {
+                         use Queueable;
+
+                         /**
+                              * Create a new notification instance.
+                              */
+                         public function __construct()
+                         {
+                              //
+                         }
+
+                         /**
+                              * Get the notification's delivery channels.
+                              *
+                              * @return array<int, string>
+                              */
+                         public function via(object $notifiable): array
+                         {
+                              return ['mail'];
+                         }
+
+                         /**
+                              * Get the mail representation of the notification.
+                              */
+                         public function toMail(object $notifiable): MailMessage
+                         {
+                              return (new MailMessage)
+                                             ->line('The introduction to the notification.')
+                                             ->action('Notification Action', url('/'))
+                                             ->line('Thank you for using our application!');
+                         }
+
+                         /**
+                              * Get the array representation of the notification.
+                              *
+                              * @return array<string, mixed>
+                              */
+                         public function toArray(object $notifiable): array
+                         {
+                              return [
+                                   //
+                              ];
+                         }
+                         }
+
+
+                         *__construct() for setting notification contents or data
+                         *via() for setting deliver channel
+                         *toMail() for email notification
+                         *toArray for formatting notification as an array
+                    
+                         #Specifying Delivery Channels 
+                              mail, database, broadcast, vonage, and slack channels.
+
+                              =In LeaveNotify.php
+                                   public function via(object $notifiable): array
+                                   {
+                                        return ['database'];
+                                   }
+               =>Step 3
+                    #Sending Notifications
+                         #Using the Notification Facade
+                              Notification::send($users, new InvoicePaid($invoice));
+
+                    *sending the specific noti to the targets users 
+
+                    =In LeavesController.php
+                         public function store(LeaveRequest $request)
+                         {
+                             ....
+                              $leave->save();
+                              
+                              session()->flash("success","New Leave Created");
+
+                              Notification::send($user,new LeaveNotify($leave->id,$leave->title));
+
+                              return redirect(route("leaves.index"));
+                         }
+
+                         *use Illuminate\Support\Facades\Notification;
+                         *use App\Notifications\LeaveNotify;
+
+                    =>Self Notification
+                         =create a leave
+                         
+                         "notifications"
+                         id	                    type	                              notifiable_type     notifiable_id	data	                              read_at	created_at	updated_at	
+                         cb1358d5-8829-4b64       App\Notifications\LeaveNotify      App\Models\User     1              {"id":4,"title":"I am very sick"}  NULL
+                         -8317-026544ec9231
+
+                         *because Auth::user is me.
+
+                    =>All user notifications 
+                         =In LeavesController.php
+                         public function store(LeaveRequest $request)
+                         {
+                             ....
+                              $leave->save();
+                              
+                              session()->flash("success","New Leave Created");
+
+                              $users = User::all();
+                              Notification::send($users,new LeaveNotify($leave->id,$leave->title));
+                              return redirect(route("leaves.index"));
+                         }
+
+                         "notifications"
+                              id	                    type	                              notifiable_type     notifiable_id	data	                              read_at	created_at	updated_at	
+                              dee29ded-b963-4c26       App\Notifications\LeaveNotify      App\Models\User     1              {"id":4,"title":"I am very tired"}  NULL
+                              -8b41-cb129722fe38
+                              dee29ded-b963-4c26       App\Notifications\LeaveNotify      App\Models\User     20              {"id":4,"title":"I am very tired"}  NULL
+                              -8b41-cb129722fe38
+                              dee29ded-b963-4c26       App\Notifications\LeaveNotify      App\Models\User     30              {"id":4,"title":"I am very tired"}  NULL
+                              -8b41-cb129722fe38
+                              dee29ded-b963-4c26       App\Notifications\LeaveNotify      App\Models\User     40              {"id":4,"title":"I am very tired"}  NULL
+                              -8b41-cb129722fe38
+
+                              cb1358d5-8829-4b64       App\Notifications\LeaveNotify      App\Models\User     1              {"id":4,"title":"I am very sick"}  NULL
+                              -8317-026544ec9231
+
+                              *connect "users" table with the notifiable_type, notifiable_id
+                              *read_at null because it is not read yet.
+
+
+               =>Step 4
+                    #Accessing the Notifications
+
+                    =In adminnavbar.blade.php
+                         <!-- notify -->
+                         <li class="nav-item dropdowns me-3">
+                         <a href="javascript:void(0);" class="nav-link dropbtn" onclick="dropbtn(event)">
+                              <i class="fas fa-bell"></i>
+                              {{-- <span class="badge bg-danger">{{ $userdata->unreadNotifications->count() }}</span> --}}
+                              <span class="badge bg-danger">{{ auth()->user()->unreadNotifications->count() }}</span>
+                         </a>
+
+                         <div class="dropdown-contents mydropdowns">
+                              <a href="javascript:void(0);" class="small text-muted text-center">Mark all as read</a>
+                              
+                              @foreach($userdata->unreadNotifications as $notification)
+                              <a href="javascript:void(0);" class="d-flex">
+                                   <div class="me-3">
+                                        <i class="fas fa-bell fa-xs text-primary"></i>
+                                   </div>
+                                   <div class="small">
+                                        <ul class="list-unstyled">
+                                             <li>{{ Str::limit($notification->data["title"],20) }}</li>
+                                             <li>{{ $notification->created_at->format("d M Y h:i:s A") }}</li>
+                                        </ul>
+                                        
+                                   </div>
+                              </a>
+                              @endforeach
+                              
+
+                              <a href="javascript:void(0);" class="small text-muted text-center">Show All Notification</a>
+                         </div>
+                         </li>
+                         <!-- notify -->
+
+                    =>Test with other users
+                         =login in aung aung acc
+
+                         =View notification 1 (from admin)
+                         =create a leave
+                         =View notification 2 (from admin and me)
+
+                         *result
+                              I want to take a lea...
+                              26 Feb 2024 06:11:41 PM
+
+                              I am very tired.
+                              26 Feb 2024 04:55:46 PM
+
+                         *last notification on the top
+
+                         -----------------------------------
+
+                         =login in admin acc
+                         =View notification 3 (from aung aung and me) 1 + 2
 
