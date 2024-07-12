@@ -33,6 +33,7 @@ Route::get("/dates",function(){
 
         //=> addDays()
 
+            echo Carbon::now()->addDay(); // Adding 1 day
             echo Carbon::now()->addDays(10); // 2023-10-17 20:42:03
             echo "<br/>";
 
@@ -50,6 +51,7 @@ Route::get("/dates",function(){
 
         // =>subDays()
 
+            echo Carbon::now()->subDay(); // 2023-10-06 20:48:27
             echo Carbon::now()->subDays(1); // 2023-10-06 20:48:27
             echo "<br/>";
 
@@ -63,6 +65,8 @@ Route::get("/dates",function(){
             echo "<br/>";
 
         //=> addMonth()
+
+            echo Carbon::now()->addMonth(); // 2023-11-07 20:52:35
             echo Carbon::now()->addMonths(1); // 2023-11-07 20:52:35
             echo "<br/>";
 
@@ -77,6 +81,8 @@ Route::get("/dates",function(){
         
         // =>subMonths()
 
+            echo Carbon::now()->subMonth(); // 2023-09-07 20:54:37
+
             echo Carbon::now()->subMonths(1); // 2023-09-07 20:54:37
             echo "<br/>";
 
@@ -85,6 +91,44 @@ Route::get("/dates",function(){
 
             echo Carbon::now()->subMonths(10)->diffForHumans(); // 10 months ago
             echo "<br/>";
+
+            echo Carbon::now()->addWeek(); 
+            echo Carbon::now()->addWeeks(4);
+
+            echo Carbon::now()->subWeek(); 
+            echo Carbon::now()->subWeeks(4);  
+
+            echo Carbon::now()->addQuarter(); 
+            echo Carbon::now()->addQuarter(3); 
+
+            echo Carbon::now()->subQuarter(3); 
+            echo Carbon::now()->subQuarters(3); 
+
+
+            echo Carbon::now()->addYear(); 
+            echo Carbon::now()->addYears(3); 
+
+            echo Carbon::now()->subYear(); 
+            echo Carbon::now()->subYears(3); 
+
+            echo Carbon::now()->addHour(); 
+            echo Carbon::now()->addHours(2); 
+
+            echo Carbon::now()->subHour(); 
+            echo Carbon::now()->subHours(2); 
+
+            echo Carbon::now()->addMinute(); 
+            echo Carbon::now()->addMinutes(2); 
+
+            echo Carbon::now()->subMinute(); 
+            echo Carbon::now()->subMinutes(2); 
+
+            echo Carbon::now()->addSecond(); 
+            echo Carbon::now()->addSeconds(10); 
+
+            echo Carbon::now()->subSecond(); 
+            echo Carbon::now()->subSeconds(10); 
+
 
         // => yesterday() tomorrow()
             echo Carbon::now()->yesterday()->diffForHumans(); // 1 day ago
@@ -104,4 +148,27 @@ Route::get("/dates",function(){
             // current date - 7 10 2023
             // past date    - 5 10 2023
             // human diff   = 2 days ago (exactly calculate the past days)
+
+
+        ->everySecond();
+        ->everyMinute();
+        ->everyTwoMinutes();
+        ->everyThreeMinutes();
+        ->everyFourMinutes();       // usage: removing users who did not verify their emails
+        ->everyFiveMinutes();      
+        ->everyTenMinutes();       
+        ->everyFifteenMinutes();       
+        ->everyThirtyMinutes();      
+        
+        ->hourly();
+        ->hourlyAt(17);         // Run the task ever hour at 17 minutes past the hour 
+
+        ->daily();
+        ->daily("13:00");       // Every day at this hour (24) format 
+
+        ->weekly();
+        ->weeklyOn(1,"8:00");    // Run the task every week on Monday at 8 am
+
+        ->monthly();
+        ->monthly(4,"15:00");        // Run the task every month on 4th at 3 pm.
 });
