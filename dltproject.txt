@@ -20308,6 +20308,2468 @@
 
                          *So customers easily know their iteme are in the cart or not.
 
+          =>Pay by point with OTP 
+               =In carts > index.blade.php 
+                    <!-- START MODAL AREA -->
+
+                         <!-- start otp modal -->
+                         <div id="otpmodal" class="modal fade">
+                              <div class="modal-dialog modal-sm modal-dialog-centered">
+                                   <div class="modal-content">
+
+                                        <div class="modal-body">
+                                             <form id="verifyform" action="" method="">
+                                        
+                                                  <div class="row">
+                                                       <div class="col-md-12 form-group mb-3">
+                                                            <label for="otpcode">OTP Code <span class="text-danger">*</span></label>
+                                                            <input type="text" name="otpcode" id="otpcode" class="form-control form-control-sm rounded-0" placeholder="Enter your otp" />
+                                                       </div>
+                                                       
+                                                       <input type="hidden" name="otpuser_id" id="otpuser_id" value="{{ $userdata['id'] }}"/>
+
+                              
+                                                       <div class="col-md-12 text-end mb-3">
+                                                            <button type="submit" class="btn btn-primary btn-sm rounded-0">Submit</button>
+                                                       </div>
+                                                  </div>
+                                                  <p id="otpmessage"></p>
+                                                  <p id="">Expire in <span id="otptimer"></span> seconds</p>
+                                             </form>
+                                        </div>
+
+                                   </div>
+                              </div>
+                         </div>
+                         <!-- end otp modal -->
+                    <!-- END MODAL AREA -->
+
+
+                    // Start Pay with Points
+                    // $("#paybypoints").click(function(){
+                         
+                    //      let packageid; 
+
+                    //      $(".package").each(function(){
+                    //           packageid = $(this).data("packageid");
+                    //           // console.log(packageid); // 2, 3
+
+
+                    //           $.ajax({
+                    //                url:"{{ route('carts.paybypoints') }}",
+                    //                type:"POST",
+                    //                data:{
+                    //                     _token:$("meta[name='csrf-token']").attr("content"),
+                    //                     packageid:packageid
+                    //                },
+                    //                success:function(response){
+                    //                     window.alert(response.message);
+                    //                },
+                    //                error:function(response){
+                    //                     window.alert(response.responseJSON.message);
+                    //                }
+                    //           });
+                    //      });
+                    // });
+                    // End Pay with Points
+
+                    // Start Pay with Points
+                    $("#paybypoints").click(function(){
+                         // loading box
+                         Swal.fire({
+                              title: "Processing....",
+                              // html: "I will close in <b></b> milliseconds.",
+                              text: "Please wait while we send your OTP",
+                              allowOutsideClick:false,
+                              didOpen: () => {
+                                   Swal.showLoading();
+                              }
+                         });
+
+                         $.ajax({
+                              url:"/generateotps",
+                              type:"POST",
+                              success:function(response){
+                                   console.log(response);
+                                   Swal.close();
+
+                                   $("#otpmessage").text("Your OTP code is "+response.otp);
+                                   $("#otpmodal").modal("show");
+
+                                   startotptimer(60); // OTP will expires in 120s (2 minute);
+                              },
+                              error:function(response){
+                                   console.error("Error: ",response);
+                              }
+                         })
+                         
+                         // Clear form data
+                         $("#verifyform").trigger("reset");
+                    });
+                    // End Pay with Points
+
+                    // Method 1
+                    // function startotptimer(duration){
+                    //      // let minutes,seconds;
+                    //      // let timer = duration;
+                    //      // console.log(timer,minutes,seconds); // 120 undefined undefined
+
+                    //      let timer = duration,minutes,seconds;
+                    //      // console.log(timer,minutes,seconds); // 60 undefined undefined
+
+                    
+                    //      let setinv = setInterval(dectimer,1000);
+
+                    //      function dectimer(){
+                    //           minutes = parseInt(timer/60);
+                    //           seconds = parseInt(timer%60);
+
+                    //           minutes = minutes < 10 ? "0"+minutes : minutes;
+                    //           seconds = seconds < 10 ? "0"+seconds : seconds;
+                              
+                    //           $("#otptimer").text(`${minutes}:${seconds}`);
+
+                    //           if(timer-- < 0){
+                    //                clearInterval(setinv);
+                    //                $("#otpmodal").modal("hide");
+                    //           }
+                    //      }
+                    // }
+
+                    // Method 2
+                    function startotptimer(duration){
+                         timeleft = duration; // 60 seconds
+
+                         let setinv = setInterval(dectimer,1000);
+
+                         function dectimer(){
+                              $("#otptimer").text(timeleft);
+
+                              timeleft--;
+                              if(timeleft <= 0){
+                                   clearInterval(setinv);
+                                   $("#otpmodal").modal("hide");
+                              }
+                         }
+                    }
+
+                    $("#verifyform").on("submit",function(e){
+                         e.preventDefault();
+                         $.ajax({
+                              url:"/verifyotps",
+                              type:"POST",
+                              data:$(this).serialize(),
+                              success:function(response){
+                                   console.log(response);
+                                   if(response.message){
+                                        
+                                        let packageid; 
+
+                                        $(".package").each(function(){
+                                             packageid = $(this).data("packageid");
+                                             // console.log(packageid); // 2, 3
+
+
+                                             $.ajax({
+                                                  url:"{{ route('carts.paybypoints') }}",
+                                                  type:"POST",
+                                                  data:{
+                                                       _token:$("meta[name='csrf-token']").attr("content"),
+                                                       packageid:packageid
+                                                  },
+                                                  success:function(response){
+                                                       window.alert(response.message);
+                                                  },
+                                                  error:function(response){
+                                                       window.alert(response.responseJSON.message);
+                                                  }
+                                             });
+                                        });
+
+                                        $("#otpmodal").modal("hide");
+
+                                   }else{
+                                        console.log("Invalid OTP");
+                                   }
+                              },
+                              error:function(response){
+                                   console.log("Error OTP: ",response);
+                                   Swal.fire({
+                                        title: "Invalid OTP",
+                                        text: "Can't Perform Pay By Point",
+                                        icon: "error"
+                                   });
+                              }
+                         });
+                    });
+                    // End OTP
+
+
+     =>Exchange Points 
+          =In User.php 
+               public function userpoints(){
+                    return $this->hasOne(UserPoint::class);// no need loop
+               }
+
+          =In UserPoint.php 
+               // public function user(){
+               //     return $this->belongsTo(User::class);
+               // }
+
+               public function users(){
+                    return $this->belongsTo(User::class,"user_id","id");
+               }
+
+               // public function student(){
+               //     $student = Student::join("users","students.user_id","=","users.id")->where("students.user_id",$this->user_id)->select(["regnumber"])->first();
+               //     // dd($student->regnumber);
+               //     return $student->regnumber;
+               // }
+
+               public function students(){
+                    return $this->belongsTo(Student::class,"user_id","user_id");
+               }
+
+          
+          php artisan make:controller PointTransfersController
+
+          =In web.php 
+               Route::resource("pointtransfers",PointTransfersController::class);
+               Route::post("/pointtransfers/transfer",[PointTransfersController::class,"transfers"])->name("pointtransfers.transfers");
+
+
+          =In PointTransfersController.php 
+               public function transfers(Request $request){
+
+                    $request->validate([
+                         "receiver_id"=>"required|exists:users,id",
+                         "points"=>"required|integer|min:1"
+                    ]);
+
+                    $sender = Auth::user();
+                    $receiver = User::find($request->input("receiver_id"));
+                    $points = $request->input("points");
+
+                    if($sender->userpoints->points < $points){
+                         return response()->json(["message"=>"Insufficient points."],400);
+                    }
+                    
+                    // Begin a database transaction
+                    \DB::beginTransaction();
+                    try{
+                         // Deduct points from sender
+                         $sender->userpoints->points -= $points;
+                         $sender->userpoints->save();
+
+                         // Add points to receiver
+                         $receiver->userpoints->points += $points;
+                         $receiver->userpoints->save();
+                         
+                         // Commit the transaction
+                         \DB::commit();   
+
+                         return response()->json(["message"=>"Points transferred successfully"]);
+
+                    }catch(\Exception $err){
+                         // Rollback transaction in case of error occur
+                         \DB::rollback();
+
+                         return response()->json(["message"=>"Error occurred while transferring points","error"=>$err->getmessage()],500);
+                    }
+               }
+               *All students exchange points commession logic can be writen here.
+
+               =Point Lost Issue 
+                    User A - transfer - User B 
+                         Internect Connection Error 
+                    Minus from user A - No Points Added User B 
+                         Points lost in middle between two users
+               -------------------------------------------------------------
+               In Laravel, transactions ensure that a series of database operations either complete entirely or have no effect at all. This helps maintain data integrity. Laravel provides a convenient interface for managing database transactions using the DB facade. Here's how you can use these methods:
+
+               \DB::beginTransaction();
+
+               This method starts a new database transaction. Once this method is called, any subsequent database operations will be part of this transaction until it is either committed or rolled back.
+
+               \DB::commit();
+
+               This method commits the current transaction. This means all the database operations that were part of the transaction will be permanently applied to the database.
+
+               \DB::rollback();
+
+               This method rolls back the current transaction. This means any database operations that were part of the transaction will be undone, and the database will be left in the state it was in before the transaction began.
+
+          =In pointtransfers > index.blade.php 
+               <div class="col-md-12">
+                    <a href="javascript:void(0);" id="createmodal-btn" class="btn btn-primary btn-sm rounded-0 me-3">Transfer</a>
+
+               </div>
+
+               <!-- START MODAL AREA -->
+               <!-- start create modal -->
+               <div id="createmodal" class="modal fade">
+                    <div class="modal-dialog modal-sm modal-dialog-centered">
+                         <div class="modal-content rounded-0">
+                              <div class="modal-header">
+                                   <h6 class="modal-title">Modal Title</h6>
+                                   <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+
+                              <div class="modal-body">
+                                   <div id="step1">
+                                        <form id="verifyform" action="" method="">
+                                             <div class="row">
+                                                  <div class="col-md-12 form-group mb-3">
+                                                       <label for="student_id">Student ID <span class="text-danger">*</span></label>
+                                                       <input type="text" name="student_id" id="student_id" class="form-control form-control-sm rounded-0" placeholder="Enter Student Id" value="{{ old('name') }}"/>
+                                                  </div>
+
+                                                  <div class="col-md-12 text-end">
+                                                       <button type="button" id="verify-btn" class="btn btn-primary btn-sm rounded-0" >Next</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+                                   <div id="step2" style="display:none;">
+                                        <form id="createform" action="" method="">
+                                             <div class="row">
+                                                  <div class="col-md-12 form-group mb-3">
+                                                  <ul class="list-group">
+                                                  </ul>
+                                                  </div>
+
+                                                  <div class="col-md-12 form-group mb-3">
+                                                       <label for="points">Points <span class="text-danger">*</span></label>
+                                                       <input type="number" name="points" id="points" class="form-control form-control-sm rounded-0" placeholder="Enter Point" value="{{ old('points') }}"/>
+                                                  </div>
+                                                  
+                                                  <input type="hidden" name="receiver_id" id="receiver_id"/>
+
+                                                  <div class="col-md-12 text-end">
+                                                       <button type="button" id="stepback-btn" class="btn btn-secondary btn-sm rounded-0 me-3">Back</button>
+                                                       <button type="submit" id="create-btn" class="btn btn-primary btn-sm rounded-0" value="action-type">Submit</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+                              </div>
+
+                              <div class="modal-footer">
+
+                              </div>
+                         </div>
+                    </div>
+               </div>
+               <!-- end create modal -->
+               <!-- END MODAL AREA -->
+
+               // Start Verify & Transfer Points
+               // start create
+               $("#createmodal-btn").click(function(){
+               
+                    $("#step1").show();
+                    $("#step2").hide();
+
+                    // clear form data
+                    // $("#createform")[0].reset();
+                    $("#createform").trigger("reset");
+                    $("#verifyform").trigger("reset");
+                    
+                    $("#createmodal .modal-title").text("Verify Student");
+                    $("#create-btn").html("Transfer");
+                    $("#create-btn").val("action-type");
+
+                    $("#createmodal").modal("show"); // toggle() can also used.
+                    
+               });
+
+               // start verify student 
+               $("#verify-btn").click(function(){
+                    const studentid = $("#student_id").val();
+                    $.ajax({
+                         url:"{{ route('userpoints.verifystudent') }}",
+                         type:"POST",
+                         dataType: "json",
+                         data: {
+                              studentid:studentid
+                         },
+                         success:function(response){
+                              console.log(response);
+
+                              let htmlview="";
+
+                              $("#step1").hide();
+                              $("#step2").show();
+
+                              $("#createmodal .modal-title").text("Transfer Points");
+                              $("#receiver_id").val(response.user.id);
+                         
+                              htmlview = `<li class="list-group-item"><a href="{{ URL::to('students/${response.student.id}') }}" target="_blank">${response.student.firstname} ${response.student.lastname}</a></li>`
+                              $("#createmodal .modal-body #createform ul.list-group").html(htmlview);
+                         },
+                         error:function(response){
+                              console.log("Error: ",response);
+                         }
+                    });
+               });
+
+               $("#stepback-btn").click(function(){
+                    $("#createmodal .modal-title").text("Verify Student");
+
+                    $("#step1").show();
+                    $("#step2").hide();
+
+                    $("#verifyform").trigger("reset");
+               });
+               
+
+               $("#create-btn").click(function(e){
+                    e.preventDefault();
+
+                    let actiontype = $("#create-btn").val();
+                    console.log(actiontype);
+                    $(this).html("Sending....");
+
+                    if(actiontype === "action-type"){
+                         // Do Create
+                         $.ajax({
+                              url:"{{ route('pointtransfers.transfers') }}",
+                              type:"POST",
+                              dataType: "json",
+                              data:$("#createform").serialize(),
+                              success:function(response){
+                                   console.log(response);
+                                   // console.log(this.data); // name=&price=&duration=&packageid=
+
+                                   // $("#createform")[0].reset();
+                                   $("#createform").trigger("reset");
+
+                                   $("#createmodal").modal("hide"); // toggle
+                                   
+                                   $("#create-btn").html("Save Change");
+
+                                   fetchalldatas();
+
+                                   Swal.fire({
+                                        title: "Transfer",
+                                        text: "Transfer Successfully!",
+                                        icon: "success"
+                                   });
+                              },
+                              error:function(response){
+                                   console.log("Error: ",response);
+                                   $("#create-btn").html("Save Change");
+                              }
+                         });
+                    }
+               });
+               // End Verify & Transfer Package
+
+         
+
+          =Transfer Testing 
+               Main Points Balance - 200000
+               To - WDF1002 : Points - 50000
+               To - WDF1003 : Points - 100000
+               To - WDF1003 : Points - 49000
+
+               Current Points Balance - 1000
+
+               To - WDF1003 : Points - 20000 ---- Error 
+               To - WDF1003 : Points -       ---- Error 
+               To - WDF1003 : Points - 0 ---- Error
+
+
+               *Error 
+               Error:  {readyState: 4, getResponseHeader: ƒ, getAllResponseHeaders: ƒ, setRequestHeader: ƒ, overrideMimeType: ƒ, …}
+                    ....
+                    getAllResponseHeaders: ƒ ()
+                    getResponseHeader: ƒ (e)
+                    ....
+                    promise: ƒ (e)
+                    readyState: 4
+                    responseJSON: 
+                         errors: 
+                              points: ['The points field is required.']
+                              [[Prototype]]: Object
+                              message: "The points field is required."
+                         [[Prototype]]: Object
+                    responseText: "{\"message\":\"The points field is required.\",\"errors\":{\"points\":[\"The points field is required.\"]}}"
+
+
+               =UserPoints View 
+               	1	WDF1002	250000	03 Jul 2024	26 Jul 2024	 
+                    2	WDF1003	350000	03 Jul 2024	26 Jul 2024	 
+                    3	WDF1001	0	03 Jul 2024	26 Jul 2024
+                    *Only 3 users have points 
+
+
+               To - WDF1004 : Points - 2000
+               Solution - 1
+               // Initialize points for the user in Register
+               // $user->userpoints()->create(["points"=>0]);
+
+               Solution - 2
+               =In PointTransfersController.php 
+                    if(!$sender->userpoints->points){
+
+                    }
+               -immediate create points when user has no points
+
+          =>Point Transfer My Code 
+               =In pointtransfers > index.blade.php 
+                    <div class="col-md-12">
+                         <a href="javascript:void(0);" id="vcmodal-btn" class="btn btn-primary btn-sm rounded-0 me-3">Transfer</a>
+                    </div>
+                    <!-- START MODAL AREA -->
+                    <!-- start create modal -->
+                    <div id="vtmodal" class="modal fade">
+                         <div class="modal-dialog modal-sm modal-dialog-centered">
+                              <div class="modal-content rounded-0">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Modal Title</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <div id="step1">
+                                             <form id="verifyform" action="" method="">
+                                                  <div class="row">
+                                                       <div class="col-md-12 form-group mb-3">
+                                                            <label for="student_id">Student ID <span class="text-danger">*</span></label>
+                                                            <input type="text" name="student_id" id="student_id" class="form-control form-control-sm rounded-0" placeholder="Enter Student Id" value="{{ old('name') }}"/>
+                                                       </div>
+
+                                                       <div class="col-md-12 text-end">
+                                                            <button type="button" id="verify-btn" class="btn btn-primary btn-sm rounded-0" >Next</button>
+                                                       </div>
+                                                  </div>
+                                             </form>
+                                        </div>
+                                        <div id="step2" style="display:none;">
+                                             <form id="transferform" action="" method="">
+                                                  <div class="row">
+                                                       <div class="col-md-12 form-group mb-3">
+                                                       <ul class="list-group">
+                                                       </ul>
+                                                       </div>
+
+                                                       <div class="col-md-12 form-group mb-3">
+                                                            <label for="points">Points <span class="text-danger">*</span></label>
+                                                            <input type="number" name="points" id="points" class="form-control form-control-sm rounded-0" placeholder="Enter Point" value="{{ old('points') }}"/>
+                                                       </div>
+                                                       
+                                                       <input type="hidden" name="receiver_id" id="receiver_id"/>
+
+                                                       <div class="col-md-12 text-end">
+                                                            <button type="button" id="stepback-btn" class="btn btn-secondary btn-sm rounded-0 me-3">Back</button>
+                                                            <button type="submit" id="transfer-btn" class="btn btn-primary btn-sm rounded-0" value="action-type">Submit</button>
+                                                       </div>
+                                                  </div>
+                                             </form>
+                                        </div>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    <!-- end create modal -->
+                    <!-- END MODAL AREA -->
+
+
+
+                    $("#vtmodal-btn").click(function(){
+               
+                         $("#step1").show();
+                         $("#step2").hide();
+
+                         // clear form data
+                         // $("#transferform")[0].reset();
+                         $("#transferform").trigger("reset");
+                         $("#verifyform").trigger("reset");
+                         
+                         $("#vtmodal .modal-title").text("Verify Student");
+                         $("#transfer-btn").html("Transfer");
+                         $("#transfer-btn").val("action-type");
+
+                         $("#vtmodal").modal("show"); // toggle() can also used.
+                         
+                    });
+
+                    $("#verify-btn").click(function(){
+                         const studentid = $("#student_id").val();
+                         $.ajax({
+                              url:"{{ route('userpoints.verifystudent') }}",
+                              type:"POST",
+                              dataType: "json",
+                              data: {
+                                   studentid:studentid
+                              },
+                              success:function(response){
+                                   console.log(response);
+
+                                   let htmlview="";
+
+                                   $("#step1").hide();
+                                   $("#step2").show();
+
+                                   $("#vtmodal .modal-title").text("Transfer Points");
+                                   $("#receiver_id").val(response.user.id);
+                              
+                                   htmlview = `<li class="list-group-item"><a href="{{ URL::to('students/${response.student.id}') }}" target="_blank">${response.student.firstname} ${response.student.lastname}</a></li>`
+                                   $("#vtmodal .modal-body #transferform ul.list-group").html(htmlview);
+                              },
+                              error:function(response){
+                                   console.log("Error: ",response);
+                              }
+                         });
+                    });
+
+                    $("#stepback-btn").click(function(){
+                         $("#vtmodal .modal-title").text("Verify Student");
+
+                         $("#step1").show();
+                         $("#step2").hide();
+
+                         $("#verifyform").trigger("reset");
+                    });
+
+                    $("#transfer-btn").click(function(e){
+                         e.preventDefault();
+
+                         $(this).html("Sending....");
+
+                         // Do transfer
+                         $.ajax({
+                              url:"{{ route('pointtransfers.transfers') }}",
+                              type:"POST",
+                              dataType: "json",
+                              data:$("#transferform").serialize(),
+                              success:function(response){
+                                   console.log(response);
+                                   // console.log(this.data); // name=&price=&duration=&packageid=
+
+                                   // $("#transferform")[0].reset();
+                                   $("#transferform").trigger("reset");
+
+                                   $("#vtmodal").modal("hide"); // toggle
+                                   
+                                   $("#transfer-btn").html("Save Change");
+
+                                   fetchalldatas();
+
+                                   Swal.fire({
+                                        title: "Transfer",
+                                        text: "Transfer Successfully!",
+                                        icon: "success"
+                                   });
+                              },
+                              error:function(response){
+                                   console.log("Error: ",response);
+                                   $("#transfer-btn").html("Save Change");
+                              }
+                         });
+                    });
+
+          =>Point Transfer With OTP 
+              // Start Verify & Transfer Points
+               // start create
+               $("#createmodal-btn").click(function(){
+               
+                    $("#step1").show();
+                    $("#step2").hide();
+
+                    // clear form data
+                    // $("#createform")[0].reset();
+                    $("#createform").trigger("reset");
+                    $("#verifyform").trigger("reset");
+                    
+                    $("#createmodal .modal-title").text("Verify Student");
+                    $("#create-btn").html("Transfer");
+                    $("#create-btn").val("action-type");
+
+                    $("#createmodal").modal("show"); // toggle() can also used.
+                    
+               });
+
+               // start vefiry student 
+               $("#verify-btn").click(function(){
+                    const studentid = $("#student_id").val();
+                    $.ajax({
+                         url:"{{ route('userpoints.verifystudent') }}",
+                         type:"POST",
+                         dataType: "json",
+                         data: {
+                              studentid:studentid
+                         },
+                         success:function(response){
+                              console.log(response);
+
+                              let htmlview="";
+
+                              $("#step1").hide();
+                              $("#step2").show();
+
+                              $("#createmodal .modal-title").text("Transfer Points");
+                              $("#receiver_id").val(response.user.id);
+                         
+                              htmlview = `<li class="list-group-item"><a href="{{ URL::to('students/${response.student.id}') }}" target="_blank">${response.student.firstname} ${response.student.lastname}</a></li>`
+                              $("#createmodal .modal-body #createform ul.list-group").html(htmlview);
+                         },
+                         error:function(response){
+                              console.log("Error: ",response);
+                         }
+                    });
+               });
+
+               $("#stepback-btn").click(function(){
+                    $("#createmodal .modal-title").text("Verify Student");
+
+                    $("#step1").show();
+                    $("#step2").hide();
+
+                    $("#verifyform").trigger("reset");
+               });
+               
+
+               // $("#create-btn").click(function(e){
+               //      e.preventDefault();
+
+               //      let actiontype = $("#create-btn").val();
+               //      console.log(actiontype);
+               //      $(this).html("Sending....");
+
+               //      if(actiontype === "action-type"){
+               //           // Do Create
+               //           $.ajax({
+               //                url:"{{ route('pointtransfers.transfers') }}",
+               //                type:"POST",
+               //                dataType: "json",
+               //                data:$("#createform").serialize(),
+               //                success:function(response){
+               //                     console.log(response);
+               //                     // console.log(this.data); // name=&price=&duration=&packageid=
+
+               //                     // $("#createform")[0].reset();
+               //                     $("#createform").trigger("reset");
+
+               //                     $("#createmodal").modal("hide"); // toggle
+                                   
+               //                     $("#create-btn").html("Save Change");
+
+               //                     fetchalldatas();
+
+               //                     Swal.fire({
+               //                          title: "Transfer",
+               //                          text: "Transfer Successfully!",
+               //                          icon: "success"
+               //                     });
+               //                },
+               //                error:function(response){
+               //                     console.log("Error: ",response);
+               //                     $("#create-btn").html("Save Change");
+               //                }
+               //           });
+               //      }
+               // });
+
+               $("#create-btn").click(function(e){
+                    e.preventDefault();
+                     // loading box
+                     Swal.fire({
+                         title: "Processing....",
+                         // html: "I will close in <b></b> milliseconds.",
+                         text: "Please wait while we send your OTP",
+                         allowOutsideClick:false,
+                         didOpen: () => {
+                              Swal.showLoading();
+                         }
+                    });
+
+                    $.ajax({
+                         url:"/generateotps",
+                         type:"POST",
+                         success:function(response){
+                              console.log(response);
+                              Swal.close();
+
+                              $("#otpmessage").text("Your OTP code is "+response.otp);
+                              $("#otpmodal").modal("show");
+
+                              startotptimer(60); // OTP will expires in 120s (2 minute);
+                         },
+                         error:function(response){
+                              console.error("Error: ",response);
+                         }
+                    })
+                    
+                    // Clear form data
+                    $("#verifyform").trigger("reset");
+                    
+               });
+               // Method 1
+               // function startotptimer(duration){
+               //      // let minutes,seconds;
+               //      // let timer = duration;
+               //      // console.log(timer,minutes,seconds); // 120 undefined undefined
+
+               //      let timer = duration,minutes,seconds;
+               //      // console.log(timer,minutes,seconds); // 60 undefined undefined
+
+               
+               //      let setinv = setInterval(dectimer,1000);
+
+               //      function dectimer(){
+               //           minutes = parseInt(timer/60);
+               //           seconds = parseInt(timer%60);
+
+               //           minutes = minutes < 10 ? "0"+minutes : minutes;
+               //           seconds = seconds < 10 ? "0"+seconds : seconds;
+                         
+               //           $("#otptimer").text(`${minutes}:${seconds}`);
+
+               //           if(timer-- < 0){
+               //                clearInterval(setinv);
+               //                $("#otpmodal").modal("hide");
+               //           }
+               //      }
+               // }
+
+               // Method 2
+               function startotptimer(duration){
+                    timeleft = duration; // 60 seconds
+
+                    let setinv = setInterval(dectimer,1000);
+
+                    function dectimer(){
+                         $("#otptimer").text(timeleft);
+
+                         timeleft--;
+                         if(timeleft <= 0){
+                              clearInterval(setinv);
+                              $("#otpmodal").modal("hide");
+                         }
+                    }
+               }
+
+               $("#otpverifyform").on("submit",function(e){
+                    e.preventDefault();
+                    $.ajax({
+                         url:"/verifyotps",
+                         type:"POST",
+                         data:$(this).serialize(),
+                         success:function(response){
+                              console.log(response);
+                              if(response.message){
+                                   // Do Create
+                                   $.ajax({
+                                        url:"{{ route('pointtransfers.transfers') }}",
+                                        type:"POST",
+                                        dataType: "json",
+                                        data:$("#createform").serialize(),
+                                        success:function(response){
+                                             console.log(response);
+                                             // console.log(this.data); // name=&price=&duration=&packageid=
+
+                                             // $("#createform")[0].reset();
+                                             $("#createform").trigger("reset");
+
+                                             $("#createmodal").modal("hide"); // toggle
+                                             
+                                             $("#create-btn").html("Save Change");
+
+                                             fetchalldatas();
+
+                                             Swal.fire({
+                                                  title: "Transfer",
+                                                  text: "Transfer Successfully!",
+                                                  icon: "success"
+                                             });
+                                        },
+                                        error:function(response){
+                                             console.log("Error: ",response);
+                                             $("#create-btn").html("Save Change");
+                                        }
+                                   });
+                                  
+
+                                   $("#otpmodal").modal("hide");
+
+                              }else{
+                                   console.log("Invalid OTP");
+                              }
+                         },
+                         error:function(response){
+                              console.log("Error OTP: ",response);
+                              Swal.fire({
+                                   title: "Invalid OTP",
+                                   text: "Can't Perform Transfer Process",
+                                   icon: "error"
+                              });
+                         }
+                    });
+               });
+
+               // End Verify & Transfer Package
+
+          =>Point Transaction Record 
+               
+               =Migration 
+                    php artisan make:migration create_points_transfers_table --table=points_transfers    
+
+                    =In create_poiont_transfers_table.php 
+                         up()
+                              Schema::create('points_transfers', function (Blueprint $table) {
+                                   $table->id();
+                                   $table->unsignedBigInteger("sender_id");
+                                   $table->unsignedBigInteger("receiver_id");
+                                   $table->integer("points");
+
+                                   $table->foreign("sender_id")->references("id")->on("users")->onDelete("cascade");
+                                   $table->foreign("receiver_id")->references("id")->on("users")->onDelete("cascade");
+                              
+                              });
+
+                         down()
+                              Schema::table('points_transfers', function (Blueprint $table) {
+                              Schema::dropIfExists("points_transfers");
+                         });
+
+                    php artisan migrate 
+
+                    php artisan make:model PointsTransfer 
+               
+               =In PointsTransfer.php 
+                    protected $table = "points_transfers";
+                    protected $primaryKey = "id";
+                    protected $fillable = [
+                         "sender_id",
+                         "receiver_id",
+                         "points",
+                    ];
+
+                    public function sender(){
+                         return $this->belongsTo(User::class,"sender_id");
+                    }
+
+                    public function receiver(){
+                         return $this->belongsTo(User::class,"receiver_id");
+                    }
+
+               *Error 
+                    responseJSON: 
+                         error: "SQLSTATE[42S22]: Column not found: 1054 Unknown column 'updated_at' in 'field list' (Connection: mysql, SQL: insert into `points_transfers` (`sender_id`, `receiver_id`, `points`, `updated_at`, `created_at`) values (1, 30, 10000, 2024-07-30 21:24:24, 2024-07-30 21:24:24))"
+                         message: "Error occurred while transferring points"
+
+
+               =In create_points_transfers_table.php 
+                    up()
+                         $table->id();
+                         $table->unsignedBigInteger("sender_id");
+                         $table->unsignedBigInteger("receiver_id");
+                         $table->integer("points");
+
+                         $table->foreign("sender_id")->references("id")->on("users")->onDelete("cascade");
+                         $table->foreign("receiver_id")->references("id")->on("users")->onDelete("cascade");
+                         $table->timestamps();
+
+               =In phpmyadmin 
+                    "points_transfers"
+
+                         id	sender_id	receiver_id	points	created_at	updated_at	
+                         1	1	20	50000	2024-07-31 22:28:20	2024-07-31 22:28:20	
+                         2	1	30	20000	2024-07-31 22:30:49	2024-07-31 22:30:49	
+                         3	1	1	1000	2024-07-31 22:31:16	2024-07-31 22:31:16	
+
+          => Point Transfer with Trigger 
+
+               =>Way One 
+                    =In PointTransfersController.php 
+                         // POint Transaction Record
+                         PointsTransfer::create([
+                              "sender_id"=>$sender->id,
+                              "receiver_id"=>$receiver->id,
+                              "points"=>$points
+                         ]);
+
+                         // Here is model create for PointTransferHistory
+
+                    *One history record for one transaction. Both sender and receiver in single line.
+                    
+               =>Way Two with trigger 
+                    *Backend code reduce and trigger auto detect the transaction.
+                    *Two history records for one trancation .
+                         First line for sender 
+                         Second line for receiver
+
+                    php artisan make:model PointTransferHistory -m
+
+                    =In create_point_transfer_histories_table.php 
+                         public function up(): void
+                         {
+                              Schema::create('point_transfer_histories', function (Blueprint $table) {
+                                   $table->id();
+                                   $table->foreignId("points_transfers_id")->constrained("points_transfers");
+                                   $table->foreignId("user_id")->constrained("users")->onDelete("cascade");
+                                   $table->enum("accounttype",["debit","credit"]);
+                                   $table->integer("points");
+                                   $table->timestamps();
+                              });
+                         }
+                    =In PointTransferHistory.php 
+                         protected $table = "point_transfer_histories";
+                         protected $primaryKey = "id";
+                         protected $fillable = [
+                              "points_transfers_id",
+                              "user_id",
+                              "accounttype",
+                              "points"
+                         ];
+
+
+                    php artisan make:migration create_pointtransfers_trigger
+                    =In create_pointtransfers_trigger.php 
+                         public function up(): void
+                         {
+                              DB::unprepared("
+                                   CREATE TRIGGER pointtransfers_afc
+                                   AFTER INSERT ON points_transfers FOR EACH ROW 
+                                   BEGIN 
+                                        INSERT INTO point_transfer_histories(points_transfers_id,user_id,accounttype,points,created_at,updated_at)
+                                        VALUE(NEW.id,NEW.sender_id,'credit',NEW.points,NOW(),NOW());
+
+                                        INSERT INTO point_transfer_histories(points_transfers_id,user_id,accounttype,points,created_at,updated_at)
+                                        VALUE(NEW.id,NEW.receiver_id,'debit',NEW.points,NOW(),NOW());
+                                   END
+                              ");
+                         }
+                         public function down(): void
+                         {
+                              DB::unprepared("DROP TRIGGER IF EXISTS pointtransfers_afc");
+                         }
+
+                    =In phpmyadmin 
+                         `points_transfers`
+                              id	sender_id	receiver_id	points	created_at	updated_at	
+                              4	1	     20	          3000	     2024-08-04 14:16:40	2024-08-04 14:16:40	
+                              5	1	     30	          8000	     2024-08-04 14:17:22	2024-08-04 14:17:22	
+                         
+                         `point_transfer_histories`
+                              id	points_transfers_id	user_id	accounttype	points	created_at	updated_at	
+                              1	4	               1	     credit	     3000	     2024-08-04 14:16:40	2024-08-04 14:16:40	
+                              2	4	               20	     debit	     3000	     2024-08-04 14:16:40	2024-08-04 14:16:40	
+                              3	5	               1	     credit	     8000	     2024-08-04 14:17:22	2024-08-04 14:17:22	
+                              4	5	               30	     debit	     8000	     2024-08-04 14:17:22	2024-08-04 14:17:22	
+
+                    =Self Transfer 
+                         =In phpmyadmin 
+                         `points_transfers`
+                                   id	sender_id	receiver_id	points	created_at	updated_at	
+                                   6	1	     1	          2000	     2024-08-04 16:06:22	2024-08-04 16:06:22	
+                              
+                              `point_transfer_histories`
+                                   id	points_transfers_id	user_id	accounttype	points	created_at	updated_at	
+                                   5	6	1	credit	2000	2024-08-04 16:06:22	2024-08-04 16:06:22	
+                                   6	6	1	debit	2000	2024-08-04 16:06:22	2024-08-04 16:06:22	
+
+
+
+                    =>Preventing Self Transfer 
+                         =In PointTransfersController.php 
+                              public function transfers(Request $request){
+
+                                   $request->validate([
+                                        "receiver_id"=>"required|exists:users,id",
+                                        "points"=>"required|integer|min:1"
+                                   ]);
+
+                                   $sender = Auth::user();
+                                   $receiver = User::find($request->input("receiver_id"));
+                                   $points = $request->input("points");
+
+                                   // Ensure that sender to sender are not the same
+                                   if($sender->id === $receiver->id){
+                                        return response()->json(["message"=>"You cannot transfer points to yourself."],400);
+                                   }
+                                   ...
+                              }
+
+
+          =>Showing Point Transfer Histories 
+               =In PointTransfersController.php 
+                    public function index(){
+
+                         if(request()->ajax()){
+                              $pointtransferhistories = PointTransferHistory::all();
+                              return view("pointtransfers.list",compact("pointtransferhistories"))->render();
+                         }
+                         return view("pointtransfers.index");
+                    }
+
+               =In pointtransfers > index.blade.php 
+                    <table id="mytable" class="table table-sm table-hover border">
+          
+                         <thead>
+                              <th>
+                                   <input type="checkbox" name="selectalls" id="selectalls" class="form-check-input selectalls" />
+                              </th>
+                              <th>No</th>
+                              <th>Student Id</th>
+                              <th>Points</th>
+                              <th>Account Type</th>
+                              <th>Created At</th>
+                              <th>Updated At</th>
+                         </thead>
+               
+                         <tbody id="tabledata">
+                              
+                         </tbody>
+               
+                    </table>
+
+
+                    // Start Fetch All Datas 
+                    function fetchalldatas(){
+                         $.ajax({
+                              url:"{{route('pointtransfers.index')}}",
+                              meethod:"GET",
+                              beforeSend:function(){
+                                   $(".loader").addClass("show");
+                              },
+                              success:function(response){
+                              //    console.log(response);
+                                   $("#tabledata").html(response);
+                              },
+                              complete:function(){
+                                   console.log("complete:");
+                                   $(".loader").removeClass("show");
+                              }
+                         });
+                    }
+                    fetchalldatas();
+                    // End Fetch All Datas
+
+               =In pointtransfers > list.blade.php 
+                    @foreach($pointtransferhistories as $idx=>$pointtransferhistory)
+                         <tr>
+                              <td><input type="checkbox" name="singlechecks" class="form-check-input singlechecks" value="{{$pointtransferhistory->id}}" /></td>
+                              <td>{{ ++$idx }}</td>
+                              <td>{{ $pointtransferhistory->students["regnumber"] }}</td>
+                              <td>{{ $pointtransferhistory->points }}</td>
+                              <td><span class="badge {{ ($pointtransferhistory->accounttype == 'debit') ? 'text-bg-success' : 'text-bg-danger'}}">{{ $pointtransferhistory->accounttype }}</span></td>
+                              <td>{{ $pointtransferhistory->created_at->format("d M Y h:m:s") }}</td>
+                              <td>{{ $pointtransferhistory->updated_at->format("d M Y h:m:s") }}</td>
+                         </tr>
+                    endforeach
+
+
+     =>Multi File Upload 
+          php artisan make:model LeaveFile -m
+
+          =In create_leave_files_table.php 
+               up()
+               $table->foreignId("leave_id")->constrained("leaves")->onDelete("cascade");
+               $table->string("image");
+          
+          =In LeaveFile.php 
+               protected $table = "leave_files";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "leave_id",
+                    "image",
+               ];
+
+               public function leave(){
+                    return $this->belongsTo(Leave::class);
+               }
+          
+          =In Leave.php 
+               public function leavefiles(){
+                    return $this->hasMany(LeaveFile::class);
+               }
+
+          =In leaves > create.blade.php 
+               <form action="/leaves" method="POST" enctype="multipart/form-data">
+                    @csrf
+                         <div class="row">
+                              <div class="col-md-12 mb-3">
+                                   <label for="image" class="gallery"><span>Choose Images</span></label>
+                                   <input type="file" name="images[]" id="images" class="form-control form-control-sm rounded-0" value="{{ old('image')}}" multiple hidden/>
+                              </div>
+
+               
+
+          =In leaves > edit.blade.php 
+               <form action="/leaves/{{$leave->id}}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    @method("PUT")
+                         <div class="row">
+                              <div class="col-md-6 text-sm-center">
+                                   <img src="{{asset($leave->image)}}" width="200" alt="{{$leave->title}}"/>
+                              </div>
+                              <div class="col-md-6">
+                                   <label for="image" class="gallery"><span>Choose Images</span></label>
+                                   <input type="file" name="images[]" id="images" class="form-control form-control-sm rounded-0" value="{{ old('image',$leave->image) }}" multiple hidden/>
+                              </div>
+
+
+          =In leaves > create.blade.php / edit.blade.php 
+               var previewimages = function(input,output){
+
+                    // console.log(input.files);
+
+                    if(input.files){
+                         var totalfiles = input.files.length;
+                         // console.log(totalfiles);
+                         if(totalfiles > 0){
+                              $('.gallery').addClass('removetxt');
+                         }else{
+                              $('.gallery').removeClass('removetxt');
+                         }
+                         console.log(input.files);
+
+                         for(var i = 0 ; i < totalfiles ; i++){
+                              var filereader = new FileReader();
+
+
+                              filereader.onload = function(e){
+                                   // $(output).html(""); 
+                                   $($.parseHTML('<img>')).attr('src',e.target.result).appendTo(output);
+                              }
+
+                              filereader.readAsDataURL(input.files[i]);
+
+                         }
+                    }
+               
+               };
+
+               $('#images').change(function(){
+                    previewimages(this,'.gallery');
+               });
+
+
+          =In LeavesController.php 
+               public function store(LeaveRequest $request)
+               {
+                    ....
+                    $leave->save();
+
+                    // Multi Images Upload 
+                    if($request->hasFile('images')){
+                         foreach($request->file("images") as $image){
+                              $leavefile = new LeaveFile();
+                              $leavefile->leave_id = $leave->id;
+
+                              $file = $image;
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$leave['id'].$fname;
+                              $file->move(public_path('assets/img/leaves/'),$imagenewname);
+
+
+                              $filepath = 'assets/img/leaves/'.$imagenewname; 
+                              $leavefile->image = $filepath;
+
+                              $leavefile->save();
+                         }
+                    }
+                    ....
+               }
+
+               public function update(LeaveRequest $request, string $id)
+               {    
+                    ....
+                    $leave->save();
+
+                    // Remove Old Image
+                    $leavefiles = LeaveFile::where('leave_id',$leave->id)->get();
+                    if($request->hasFile('images')){
+                         foreach($leavefiles as $leavefile){
+                              $path = $leavefile->image;
+
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+                    }
+
+                    // Multi Images Upload 
+                    if($request->hasFile('images')){
+                         foreach($request->file("images") as $image){
+                              $leavefile = new LeaveFile();
+                              $leavefile->leave_id = $leave->id;
+
+                              $file = $image;
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$leave['id'].$fname;
+                              $file->move(public_path('assets/img/leaves/'),$imagenewname);
+
+
+                              $filepath = 'assets/img/leaves/'.$imagenewname; 
+                              $leavefile->image = $filepath;
+
+                              $leavefile->save();
+                         }
+                    }                    
+                    ....
+               }
+
+               public function destroy(string $id)
+               {
+                    $leave = Leave::findOrFail($id);
+                    
+                    // Remove Old Image
+                    $leavefiles = LeaveFile::where('leave_id',$id)->get();
+                    foreach($leavefiles as $leavefile){
+                         $path = $leavefile->image;
+                         if(File::exists($path)){
+                              File::delete($path);
+                         }
+                    }
+                    $leave->delete();
+                    return redirect()->back();
+               }
+
+     =>Dynamic Select Option 
+          Country > City > Region > Township 
+
+          -useful in Ecommerce website 
+
+          php artisan make:model Region -m 
+          php artisan make:model Township -m 
+
+          =In create_region_table.php 
+               up()
+
+               $table->string('name');
+               $table->string('slug');
+               $table->unsignedBigInteger('country_id');
+               $table->unsignedBigInteger('city_id');
+               $table->unsignedBigInteger('status_id')->default(1);
+               $table->unsignedBigInteger('user_id');
+
+          =In create_townships_table.php 
+               up()
+
+               $table->string('name');
+               $table->string('slug');
+               $table->unsignedBigInteger('country_id');
+               $table->unsignedBigInteger('city_id');
+               $table->unsignedBigInteger('region_id');
+               $table->unsignedBigInteger('status_id')->default(1);
+               $table->unsignedBigInteger('user_id');
+
+          =In Region.php 
+               protected $table = "regions";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "name",
+                    "slug",
+                    "country_id",
+                    "city_id",
+                    "user_id"
+               ];
+
+               public function user(){
+                    return $this->belongsTo(User::class);
+               }
+
+               public function status(){
+                    return $this->belongsTo(Status::class);
+               }
+
+               public function country(){
+                    return $this->belongsTo(Country::class);
+               }
+
+               public function city(){
+                    return $this->belongsTo(City::class);
+               }
+
+          =In Township.php 
+               protected $table = "townships";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "name",
+                    "slug",
+                    "country_id",
+                    "city_id",
+                    "region_id",
+                    "user_id"
+               ];
+
+               public function user(){
+                    return $this->belongsTo(User::class);
+               }
+
+               public function status(){
+                    return $this->belongsTo(Status::class);
+               }
+
+               public function country(){
+                    return $this->belongsTo(Country::class);
+               }
+
+               public function city(){
+                    return $this->belongsTo(City::class);
+               }
+
+               public function region(){
+                    return $this->belongsTo(Region::class);
+               }
+
+          php artisan make:controller RegionsController
+          php artisan make:controller TownshipsController
+
+          =In web.php 
+               Route::resource("regions",RegionsController::class);
+               Route::get("/regionsstatus",[RegionsController::class,"typestatus"]);
+               Route::delete("/regionsbulkdeletes",[RegionsController::class,"bulkdeletes"])->name("regions.bulkdeletes");
+               
+               Route::resource("townships",TownshipsController::class);
+               Route::get("/townshipsstatus",[TownshipsController::class,"typestatus"]);
+               Route::delete("/townshipsbulkdeletes",[TownshipsController::class,"bulkdeletes"])->name("townships.bulkdeletes");
+
+          =In RegionsController.php
+               public function index()
+               {
+                    // http://127.0.0.1:8000/regions?filtername=mm
+                    // dd(request("filtername")); // mm
+
+                    $regions = Region::where(function($query){
+                         if($getname = request("filtername")){
+                              $query->where("name","LIKE","%".$getname."%");
+                         }
+                    })->get();
+                    // dd($regions);
+
+                    $countries = Country::orderBy("name")->where("status_id",3)->get();
+                    $cities = City::orderBy("name")->where("status_id",3)->get();
+                    $statuses = Status::whereIn("id",[3,4])->get();
+
+                    return view("regions.index",compact("regions","countries","cities","statuses"));
+               }
+               // request() - get the request form value
+
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "country_id"=>"required",
+                         "city_id"=>"required",
+                         "name" => "required|unique:regions,name",
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $region = new Region();
+                    $region->name = $request["name"];
+                    $region->slug = Str::slug($request["name"]);
+                    $region->country_id = $request["country_id"];
+                    $region->city_id = $request["city_id"];
+                    $region->status_id = $request["status_id"];
+                    $region->user_id = $user_id;
+
+                    $region->save();
+                    return redirect(route("regions.index"));
+               }
+
+               public function update(Request $request, string $id)
+               {
+                    $this->validate($request,[
+                         "editcountry_id"=>"required",
+                         "editcity_id"=>"required",
+                         "editname" => "required|unique:regions,name,".$id,
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user['id'];
+
+                    $region = Region::findOrFail($id);
+                    $region->name = $request["editname"];
+                    $region->slug = Str::slug($request["editname"]);
+                    $region->country_id = $request["editcountry_id"];
+                    $region->city_id = $request["editcity_id"];
+                    $region->status_id = $request["editstatus_id"];
+                    $region->user_id = $user_id;
+
+                    $region->save();
+                    return redirect(route("regions.index"));
+               }
+
+
+               public function destroy(string $id)
+               {
+                    $region = Region::findOrFail($id);
+                    $region->delete();
+                    return redirect()->back();
+               }
+
+               public function typestatus(Request $request){
+                    $region = Region::findOrFail($request["id"]);
+                    $region->status_id = $request["status_id"];
+                    $region->save();
+               
+                    return response()->json(["success"=>"Status Change Successfully"]);
+               }
+
+               public function bulkdeletes(Request $request)
+               {
+                    try{
+                         $getselectedids = $request->selectedids;
+                         Region::whereIn("id",$getselectedids)->delete();
+                         return response()->json(["success"=>"Selected data have been deleted successfully"]);
+                    }catch(Exception $e){
+                         Log::error($e->getMEssage());
+                         return response()->json(["status"=>"failed","message"=>$e->getMessage()]);
+                    }
+               }
+
+    
+          =In regions index page 
+               Country        City           Region Name    Status 
+               ---------------------------------------------------------
+               Myanmar        Yangon         Tamwe          On 
+               Myanmar        Mandalay       Amarapura      On 
+               Thailand       Bangkok        Nana           On 
+               Thailand       Bangkok        Asoke          On 
+
+          =In regions > index.blade.php 
+               <form action="{{route('regions.store')}}" method="POST">
+                    {{ csrf_field() }}
+                    <div class="row align-items-end">
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="country_id">Country</label>
+                              <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a country</option>
+                                   @foreach($countries as $country)
+                                        <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="city_id">City</label>
+                              <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a country</option>
+                                   @foreach($cities as $city)
+                                        <option value="{{$city['id']}}">{{$city['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="name">Region Name <span class="text-danger">*</span></label>
+                              @error("name")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                              <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Country Name" value="{{ old('name') }}"/>
+                         </div>
+
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="status_id">Status</label>
+                              <select name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                                   @foreach($statuses as $status)
+                                        <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+
+                         <div class="col-md-2 mb-3 text-sm-end text-md-start">
+                              <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                              <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                         </div>
+                    </div>
+               </form>
+
+
+               <table id="mytable" class="table table-sm table-hover border">
+          
+                    <thead>
+                         <th>
+                              <input type="checkbox" name="selectalls" id="selectalls" class="form-check-input selectalls" />
+                         </th>
+                         <th>No</th>
+                         <th>Name</th>
+                         <th>City</th>
+                         <th>Country</th>
+                         <th>Status</th>
+                         <th>By</th>
+                         <th>Created At</th>
+                         <th>Updated At</th>
+                         <th>Action</th>
+                    </thead>
+          
+                    <tbody>
+                         @foreach($regions as $idx=>$region)
+                         <tr id="tablerole_{{$region->id}}">
+                              <td>
+                                   <input type="checkbox" name="singlechecks" class="form-check-input singlechecks" value="{{$region->id}}"/>
+                              </td>
+                              <td>{{++$idx}}</td>
+                              <td>{{ $region->name }}</td>
+                              <td>{{ $region->city["name"] }}</td>
+                              <td>{{ $region->country["name"] }}</td>
+                              
+                              <td>
+                                   <div class="form-check form-switch">
+                                        <input type="checkbox" class="form-check-input change-btn" {{ $region->status_id === 3 ? "checked" : "" }} data-id="{{ $region->id }}"/>
+                                   </div>
+                              </td>
+                              <td>{{ $region->user["name"] }}</td>
+                              <td>{{ $region->created_at->format('d M Y') }}</td>
+                              <td>{{ $region->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$region->id}}" data-name="{{$region->name}}" data-country="{{ $region->country_id }}" data-city="{{ $region->city_id }}" data-status="{{ $region->status_id }}"><i class="fas fa-pen"></i></a>
+                                   <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                              
+                              </td>
+                              <form id="formdelete-{{ $idx }}" class="" action="{{route('regions.destroy',$region->id)}}" method="POST">
+                                   @csrf
+                                   @method("DELETE")
+                              </form>
+                         </tr>
+                         @endforeach
+                    </tbody>
+               </table>
+               
+
+               <!-- start edit modal -->
+                    <div id="editmodal" class="modal fade">
+                         <div class="modal-dialog modal-dialog-centered">
+                              <div class="modal-content">
+                                   <div class="modal-header">
+                                        <h6 class="modal-title">Edit Form</h6>
+                                        <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                                   </div>
+
+                                   <div class="modal-body">
+                                        <form id="formaction" action="" method="POST">
+                                             {{ csrf_field() }}
+                                             {{ method_field('PUT') }}
+                                             <div class="row align-items-end">
+                                                  <div class="col-md-6 form-group mb-3">
+                                                       <label for="editcountry_id">Country</label>
+                                                       <select name="editcountry_id" id="editcountry_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($countries as $country)
+                                                                 <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                                            @endforeach     
+                                                       </select>
+                                                  </div>
+
+                                                  <div class="col-md-6 form-group mb-3">
+                                                       <label for="editcity_id">City</label>
+                                                       <select name="editcity_id" id="editcity_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($cities as $city)
+                                                                 <option value="{{$city['id']}}">{{$city['name']}}</option>
+                                                            @endforeach     
+                                                       </select>
+                                                  </div>
+
+                                                  <div class="col-md-6 form-group mb-3">
+                                                       <label for="editname">Name <span class="text-danger">*</span></label>
+                                                       <input type="text" name="editname" id="editname" class="form-control form-control-sm rounded-0" placeholder="Enter region Name" value="{{ old('name') }}"/>
+                                                  </div>
+
+                                                  <div class="col-md-6 form-group mb-3">
+                                                       <label for="editstatus_id">Status</label>
+                                                       <select name="editstatus_id" id="editstatus_id" class="form-control form-control-sm rounded-0">
+                                                            @foreach($statuses as $status)
+                                                                 <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                                            @endforeach     
+                                                       </select>
+                                                  </div>
+                         
+                                                  <div class="col-md-12 text-sm-end text-start mb-3">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                                  </div>
+                                             </div>
+                                        </form>
+                                   </div>
+
+                                   <div class="modal-footer">
+
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+               <!-- end edit modal -->
+
+               // Start Edit Form
+               $(document).on("click",".editform",function(e){
+                    // console.log($(this).attr("data-id"),$(this).attr("data-name"));
+                    
+                    $("#editname").val($(this).attr("data-name"));
+                    $("#editcountry_id").val($(this).attr("data-country"));
+                    $("#editcity_id").val($(this).attr("data-city"));
+                    $("#editstatus_id").val($(this).attr("data-status"));
+
+                    const getid = $(this).attr("data-id");
+                    $("#formaction").attr("action",`/regions/${getid}`);
+
+                    e.preventDefault();
+               });
+               // End Edit Form
+
+          =In TownshipsController.php 
+               public function index()
+               {
+                    // http://127.0.0.1:8000/townships?filtername=mm
+                    // dd(request("filtername")); // mm
+
+                    $townships = Township::where(function($query){
+                         if($getname = request("filtername")){
+                              $query->where("name","LIKE","%".$getname."%");
+                         }
+                    })->get();
+                    // dd($townships);
+
+                    $countries = Country::orderBy("name")->where("status_id",3)->get();
+                    $cities = City::orderBy("name")->where("status_id",3)->get();
+                    $regions = Region::orderBy("name")->where("status_id",3)->get();
+                    $statuses = Status::whereIn("id",[3,4])->get();
+
+                    return view("townships.index",compact("townships","countries","cities","regions","statuses"));
+               }
+               // request() - get the request form value
+
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "country_id"=>"required",
+                         "city_id"=>"required",
+                         "region_id"=>"required",
+                         "name" => "required|unique:townships,name",
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $township = new Township();
+                    $township->name = $request["name"];
+                    $township->slug = Str::slug($request["name"]);
+                    $township->country_id = $request["country_id"];
+                    $township->city_id = $request["city_id"];
+                    $township->region_id = $request["region_id"];
+                    $township->status_id = $request["status_id"];
+                    $township->user_id = $user_id;
+
+                    $township->save();
+                    return redirect(route("townships.index"));
+               }
+
+
+               public function update(Request $request, string $id)
+               {
+                    $this->validate($request,[
+                         "editcountry_id"=>"required",
+                         "editcity_id"=>"required",
+                         "editregion_id"=>"required",
+                         "editname" => "required|unique:townships,name,".$id,
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user['id'];
+
+                    $township = Township::findOrFail($id);
+                    $township->name = $request["editname"];
+                    $township->slug = Str::slug($request["editname"]);
+                    $township->country_id = $request["editcountry_id"];
+                    $township->city_id = $request["editcity_id"];
+                    $township->region_id = $request["editregion_id"];
+                    $township->status_id = $request["editstatus_id"];
+                    $township->user_id = $user_id;
+
+                    $township->save();
+                    return redirect(route("townships.index"));
+               }
+
+
+               public function destroy(string $id)
+               {
+                    $township = Township::findOrFail($id);
+                    $township->delete();
+                    return redirect()->back();
+               }
+
+               public function typestatus(Request $request){
+                    $township = Township::findOrFail($request["id"]);
+                    $township->status_id = $request["status_id"];
+                    $township->save();
+               
+                    return response()->json(["success"=>"Status Change Successfully"]);
+               }
+
+               public function bulkdeletes(Request $request)
+               {
+                    try{
+                         $getselectedids = $request->selectedids;
+                         Township::whereIn("id",$getselectedids)->delete();
+                         return response()->json(["success"=>"Selected data have been deleted successfully"]);
+                    }catch(Exception $e){
+                         Log::error($e->getMEssage());
+                         return response()->json(["status"=>"failed","message"=>$e->getMessage()]);
+                    }
+               }
+
+          =In townships > index.blade.php 
+               <form action="{{route('townships.store')}}" method="POST">
+                    {{ csrf_field() }}
+                    <div class="row align-items-end">
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="country_id">Country</label>
+                              <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a country</option>
+                                   @foreach($countries as $country)
+                                        <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="city_id">City</label>
+                              <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a city</option>
+                                   @foreach($cities as $city)
+                                        <option value="{{$city['id']}}">{{$city['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="region_id">Region</label>
+                              <select name="region_id" id="region_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a region</option>
+                                   @foreach($regions as $region)
+                                        <option value="{{$region['id']}}">{{$region['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="name">Township Name <span class="text-danger">*</span></label>
+                              @error("name")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                              <input type="text" name="name" id="name" class="form-control form-control-sm rounded-0" placeholder="Enter Country Name" value="{{ old('name') }}"/>
+                         </div>
+
+                         <div class="col-md-2 form-group mb-3">
+                              <label for="status_id">Status</label>
+                              <select name="status_id" id="status_id" class="form-control form-control-sm rounded-0">
+                                   @foreach($statuses as $status)
+                                        <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+
+                         <div class="col-md-2 mb-3 text-sm-end text-md-start">
+                              <button type="reset" class="btn btn-secondary btn-sm rounded-0">Cancel</button>
+                              <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3">Submit</button>
+                         </div>
+                    </div>
+               </form>
+
+               <table id="mytable" class="table table-sm table-hover border">
+          
+                    <thead>
+                         <th>
+                              <input type="checkbox" name="selectalls" id="selectalls" class="form-check-input selectalls" />
+                         </th>
+                         <th>No</th>
+                         <th>Name</th>
+                         <th>Region</th>
+                         <th>City</th>
+                         <th>Country</th>
+                         <th>Status</th>
+                         <th>By</th>
+                         <th>Created At</th>
+                         <th>Updated At</th>
+                         <th>Action</th>
+                    </thead>
+          
+                    <tbody>
+                         @foreach($townships as $idx=>$township)
+                         <tr id="tablerole_{{$township->id}}">
+                              <td>
+                                   <input type="checkbox" name="singlechecks" class="form-check-input singlechecks" value="{{$township->id}}"/>
+                              </td>
+                              <td>{{++$idx}}</td>
+                              <td>{{ $township->name }}</td>
+                              <td>{{ $township->region["name"] }}</td>
+                              <td>{{ $township->city["name"] }}</td>
+                              <td>{{ $township->country["name"] }}</td>
+                              
+                              <td>
+                                   <div class="form-check form-switch">
+                                        <input type="checkbox" class="form-check-input change-btn" {{ $township->status_id === 3 ? "checked" : "" }} data-id="{{ $township->id }}"/>
+                                   </div>
+                              </td>
+                              <td>{{ $township->user["name"] }}</td>
+                              <td>{{ $township->created_at->format('d M Y') }}</td>
+                              <td>{{ $township->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="javascript:void(0);" class="text-info editform" data-bs-toggle="modal" data-bs-target="#editmodal" data-id="{{$township->id}}" data-name="{{$township->name}}" data-country="{{ $township->country_id }}" data-city="{{ $township->city_id }}" data-region="{{ $township->region_id }}" data-status="{{ $township->status_id }}"><i class="fas fa-pen"></i></a>
+                                   <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                              
+                              </td>
+                              <form id="formdelete-{{ $idx }}" class="" action="{{route('townships.destroy',$township->id)}}" method="POST">
+                                   @csrf
+                                   @method("DELETE")
+                              </form>
+                         </tr>
+                         @endforeach
+                    </tbody>
+               </table>
+
+               <!-- start edit modal -->
+               <div id="editmodal" class="modal fade">
+                    <div class="modal-dialog modal-dialog-centered">
+                         <div class="modal-content">
+                              <div class="modal-header">
+                                   <h6 class="modal-title">Edit Form</h6>
+                                   <button type="" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+
+                              <div class="modal-body">
+                                   <form id="formaction" action="" method="POST">
+                                        {{ csrf_field() }}
+                                        {{ method_field('PUT') }}
+                                        <div class="row align-items-end">
+                                             <div class="col-md-6 form-group mb-3">
+                                                  <label for="editcountry_id">Country</label>
+                                                  <select name="editcountry_id" id="editcountry_id" class="form-control form-control-sm rounded-0">
+                                                       @foreach($countries as $country)
+                                                            <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                                       @endforeach     
+                                                  </select>
+                                             </div>
+
+                                             <div class="col-md-6 form-group mb-3">
+                                                  <label for="editcity_id">City</label>
+                                                  <select name="editcity_id" id="editcity_id" class="form-control form-control-sm rounded-0">
+                                                       @foreach($cities as $city)
+                                                            <option value="{{$city['id']}}">{{$city['name']}}</option>
+                                                       @endforeach     
+                                                  </select>
+                                             </div>
+
+                                             <div class="col-md-6 form-group mb-3">
+                                                  <label for="editregion_id">Region</label>
+                                                  <select name="editregion_id" id="editregion_id" class="form-control form-control-sm rounded-0">
+                                                       @foreach($regions as $region)
+                                                            <option value="{{$region['id']}}">{{$region['name']}}</option>
+                                                       @endforeach     
+                                                  </select>
+                                             </div>
+
+                                             <div class="col-md-6 form-group mb-3">
+                                                  <label for="editname">Name <span class="text-danger">*</span></label>
+                                                  <input type="text" name="editname" id="editname" class="form-control form-control-sm rounded-0" placeholder="Enter township Name" value="{{ old('name') }}"/>
+                                             </div>
+
+                                             <div class="col-md-6 form-group mb-3">
+                                                  <label for="editstatus_id">Status</label>
+                                                  <select name="editstatus_id" id="editstatus_id" class="form-control form-control-sm rounded-0">
+                                                       @foreach($statuses as $status)
+                                                            <option value="{{$status['id']}}">{{$status['name']}}</option>
+                                                       @endforeach     
+                                                  </select>
+                                             </div>
+                    
+                                             <div class="col-md-12 text-sm-end text-start mb-3">
+                                                  <button type="submit" class="btn btn-primary btn-sm rounded-0">Update</button>
+                                             </div>
+                                        </div>
+                                   </form>
+                              </div>
+
+                              <div class="modal-footer">
+
+                              </div>
+                         </div>
+                    </div>
+               </div>
+               <!-- end edit modal -->
+
+
+               // Start Edit Form
+               $(document).on("click",".editform",function(e){
+                    // console.log($(this).attr("data-id"),$(this).attr("data-name"));
+                    
+                    $("#editname").val($(this).attr("data-name"));
+                    $("#editcountry_id").val($(this).attr("data-country"));
+                    $("#editcity_id").val($(this).attr("data-city"));
+                    $("#editregion_id").val($(this).attr("data-region"));
+                    $("#editstatus_id").val($(this).attr("data-status"));
+
+                    const getid = $(this).attr("data-id");
+                    $("#formaction").attr("action",`/townships/${getid}`);
+
+                    e.preventDefault();
+               });
+               // End Edit Form
+
+     
+          =In api.php 
+               Route::get("/filter/cities/{filter}",[CitiesController::class,"filterbycountryid"]); // dyamic selectoption by countryid
+
+          =In api > CitiesController.php 
+               public function filterbycountryid($filter){
+                    // return City::where("country_id",$filter)->where('status_id',3)->get();
+                    return CitiesResource::collection(City::where("country_id",$filter)->where('status_id',3)->get());
+               }
+
+               =http://127.0.0.1:8000/api/filter/cities/154
+               [
+                    {
+                    "id": 84,
+                    "name": "Yangon",
+                    "slug": "yangon",
+                    "country_id": 154,
+                    "status_id": 3,
+                    "user_id": 1,
+                    "created_at": "2024-08-10T09:23:50.000000Z",
+                    "updated_at": "2024-08-10T09:23:50.000000Z"
+                    },
+                    {
+                    "id": 85,
+                    "name": "Mandalay",
+                    "slug": "mandalay",
+                    "country_id": 154,
+                    "status_id": 3,
+                    "user_id": 1,
+                    "created_at": "2024-08-10T09:24:00.000000Z",
+                    "updated_at": "2024-08-10T09:24:00.000000Z"
+                    }
+               ]
+
+          =In regions > index.blade.php 
+               <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0 city_id">
+                    <option value="" selected disabled>Choose a city</option>
+                    {{-- @foreach($cities as $city)
+                         <option value="{{$city['id']}}">{{$city['name']}}</option>
+                    @endforeach --}}     
+               </select>
+
+               <!-- start edit modal -->
+               <div class="col-md-6 form-group mb-3">
+                    <label for="editcity_id">City</label>
+                    <select name="editcity_id" id="editcity_id" class="form-control form-control-sm rounded-0 city_id">
+                         {{-- @foreach($cities as $city)
+                              <option value="{{$city['id']}}">{{$city['name']}}</option>
+                         @endforeach --}}     
+                    </select>
+               </div>
+
+               // Start Dynamic Select Option 
+               $(document).on("change",".country_id",function(){
+                    const getcountryid = $(this).val();
+                    // console.log(getcountryid);
+
+                    let opforcity = "";
+                    $.ajax({
+                         url: `/api/filter/cities/${getcountryid}`,
+                         type: "GET",
+                         dataType:"json",
+                         success:function(response){
+                              $(".city_id").empty();
+                              opforcity += "<option selected disabled>Choose a city abcd</option>";
+                              
+                              console.log(response);
+                              for(let x=0 ; x<response.data.length; x++){
+                                   opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                              }
+
+                              $(".city_id").append(opforcity);
+                         },
+                         error:function(response){
+                              console.log("Error:( ",response);
+                         }
+                    });
+               });
+               // End Dynamic Select Option
+
+               *Weakness 
+                    On edit, 
+                         Not show the present city value.Empty city value.
+                         *Can request ajax once again.
+
+               =My solotion 
+                    // Start Edit Form
+                    $(document).on("click",".editform",function(e){
+                         const getcountryid = $(this).attr("data-country");
+                         // console.log(getcountryid);
+                         let opforcity = "";
+
+                         $.ajax({
+                              url: `/api/filter/cities/${getcountryid}`,
+                              type: "GET",
+                              dataType:"json",
+                              success:function(response){
+                                   console.log(response);
+                                   $(".city_id").empty();
+                                   opforcity += "<option selected disabled>Choose a city abcd</option>";
+                                   
+                                   console.log(response);
+                                   for(let x=0 ; x<response.data.length; x++){
+                                        opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                                   }
+
+                                   $(".city_id").append(opforcity);
+
+                                   // console.log(e.target.parentElement);
+                                   $("#editcity_id").val($(e.target.parentElement).attr("data-city"));
+
+                              },
+                              error:function(response){
+                                   console.log("Error:( ",response);
+                              }
+                         });
+
+
+
+                         // console.log($(this).attr("data-id"),$(this).attr("data-name"));
+                         
+                         $("#editname").val($(this).attr("data-name"));
+                         $("#editcountry_id").val($(this).attr("data-country"));
+                         $("#editstatus_id").val($(this).attr("data-status"));
+
+                         const getid = $(this).attr("data-id");
+                         $("#formaction").attr("action",`/regions/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+
+          =>Region Dynamic Select (3 steps -  Country > City > Region)
+               php artisan make:controller Api/RegionsController --api
+               php artisan make:resource RegionsResource
+
+               =In api.php 
+                    Route::get("/filter/regions/{filter}",[RegionsController::class,"filterbycityid"]); // dyamic selectoption by cityid
+
+               =In Api > RegionsController.php 
+                    public function filterbycityid($filter){
+                         // return City::where("country_id",$filter)->where('status_id',3)->get();
+                         return RegionsResource::collection(Region::where("city_id",$filter)->where('status_id',3)->orderBy("name","asc")->get());
+
+                    }
+
+               =In RegionsResource.php 
+                     public function toArray(Request $request): array
+                    {
+                         return [
+                              "id"=>$this->id,
+                              "name"=>$this->name,
+                              "slug"=>$this->slug,
+                              "country_id"=>$this->country_id,
+                              "city_id"=>$this->city_id,
+                              "status_id"=>$this->status_id,
+                              "user_id"=>$this->user_id,
+                              "created_at"=>$this->created_at->format("d m Y"),
+                              "updated_at"=>$this->updated_at->format("d m Y"),
+
+                              "country"=>Country::where("id",$this->country_id)->select(["id","name"])->first(),
+                              "city"=>City::where("id",$this->city_id)->select(["id","name"])->first(),
+                              "user"=>User::where("id",$this->user_id)->select(["id","name"])->first(),
+                              "status"=>Status::where("id",$this->status_id)->select(["id","name"])->first()
+                         ];
+                    }
+
+
+               =http://127.0.0.1:8000/api/filter/regions/83
+               {
+                    "data": [
+                    {
+                         "id": 4,
+                         "name": "Asoke",
+                         "slug": "asoke",
+                         "country_id": 224,
+                         "city_id": 83,
+                         "status_id": 3,
+                         "user_id": 1,
+                         "created_at": "10 08 2024",
+                         "updated_at": "10 08 2024",
+                         "country": {
+                         "id": 224,
+                         "name": "Thailand"
+                         },
+                         "city": {
+                         "id": 83,
+                         "name": "Bangkok"
+                         },
+                         "user": {
+                         "id": 1,
+                         "name": "admin"
+                         },
+                         "status": {
+                         "id": 3,
+                         "name": "On"
+                         }
+                    },
+                    {
+                         "id": 3,
+                         "name": "Nana",
+                         "slug": "nana",
+                         "country_id": 224,
+                         "city_id": 83,
+                         "status_id": 3,
+                         "user_id": 1,
+                         "created_at": "10 08 2024",
+                         "updated_at": "10 08 2024",
+                         "country": {
+                         "id": 224,
+                         "name": "Thailand"
+                         },
+                         "city": {
+                         "id": 83,
+                         "name": "Bangkok"
+                         },
+                         "user": {
+                         "id": 1,
+                         "name": "admin"
+                         },
+                         "status": {
+                         "id": 3,
+                         "name": "On"
+                         }
+                    },
+                    {
+                         "id": 8,
+                         "name": "Pidi Midi",
+                         "slug": "pidi-midi",
+                         "country_id": 224,
+                         "city_id": 83,
+                         "status_id": 3,
+                         "user_id": 1,
+                         "created_at": "16 08 2024",
+                         "updated_at": "18 08 2024",
+                         "country": {
+                         "id": 224,
+                         "name": "Thailand"
+                         },
+                         "city": {
+                         "id": 83,
+                         "name": "Bangkok"
+                         },
+                         "user": {
+                         "id": 1,
+                         "name": "admin"
+                         },
+                         "status": {
+                         "id": 3,
+                         "name": "On"
+                         }
+                    }
+                    ]
+               }
+
+               =In regions > index.blade.php 
+                    <div class="col-md-2 form-group mb-3">
+                         <label for="country_id">Country</label>
+                         <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0 country_id">
+                              <option value="" selected disabled>Choose a country</option>
+                              @foreach($countries as $country)
+                                   <option value="{{$country['id']}}">{{$country['name']}}</option>
+                              @endforeach     
+                         </select>
+                    </div>
+                    <div class="col-md-2 form-group mb-3">
+                         <label for="city_id">City</label>
+                         <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0 city_id">
+                              <option value="" selected disabled>Choose a city</option>
+                              {{-- @foreach($cities as $city)
+                                   <option value="{{$city['id']}}">{{$city['name']}}</option>
+                              @endforeach --}}     
+                         </select>
+                    </div>
+                    <div class="col-md-2 form-group mb-3">
+                         <label for="region_id">Region</label>
+                         <select name="region_id" id="region_id" class="form-control form-control-sm rounded-0 region_id">
+                              <option value="" selected disabled>Choose a region</option>
+                              {{-- @foreach($regions as $region)
+                                   <option value="{{$region['id']}}">{{$region['name']}}</option>
+                              @endforeach --}}     
+                         </select>
+                    </div>
+
+                    <div class="col-md-6 form-group mb-3">
+
+                         <label for="editcountry_id">Country</label>
+                         <select name="editcountry_id" id="editcountry_id" class="form-control form-control-sm rounded-0 country_id">
+                              @foreach($countries as $country)
+                                   <option value="{{$country['id']}}">{{$country['name']}}</option>
+                              @endforeach     
+                         </select>
+                    </div>
+
+                    <div class="col-md-6 form-group mb-3">
+                         <label for="editcity_id">City</label>
+                         <select name="editcity_id" id="editcity_id" class="form-control form-control-sm rounded-0 city_id">
+                              @foreach($cities as $city)
+                                   <option value="{{$city['id']}}">{{$city['name']}}</option>
+                              @endforeach     
+                         </select>
+                    </div>
+
+                    <div class="col-md-6 form-group mb-3">
+                         <label for="editregion_id">Region</label>
+                         <select name="editregion_id" id="editregion_id" class="form-control form-control-sm rounded-0 region_id">
+                              @foreach($regions as $region)
+                                   <option value="{{$region['id']}}">{{$region['name']}}</option>
+                              @endforeach     
+                         </select>
+                    </div>
+
+
+                    // Start Dynamic Select Option 
+                    $(document).on("change",".country_id",function(){
+                         const getcountryid = $(this).val();
+                         // console.log(getcountryid);
+
+                         let opforcity = "";
+                         let opforregion = "";
+                         $.ajax({
+                              url: `/api/filter/cities/${getcountryid}`,
+                              type: "GET",
+                              dataType:"json",
+                              success:function(response){
+                                   $(".city_id").empty();
+                                   $(".region_id").empty();
+                                   opforcity += "<option selected disabled>Choose a city ....</option>";
+                                   opforregion += "<option selected disabled>Choose a region ....</option>";
+                                   
+                                   console.log(response);
+                                   for(let x=0 ; x<response.data.length; x++){
+                                        opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                                   }
+
+                                   $(".city_id").append(opforcity);
+                                   $(".region_id").append(opforregion);
+                              },
+                              error:function(response){
+                                   console.log("Error:( ",response);
+                              }
+                         });
+                    });
+                    $(document).on("change",".city_id",function(){
+                         const getcityid = $(this).val();
+                         // console.log(getcityid);
+
+                         let opforregion = "";
+                         $.ajax({
+                              url: `/api/filter/regions/${getcityid}`,
+                              type: "GET",
+                              dataType:"json",
+                              success:function(response){
+                                   // console.log(response);
+                                   $(".region_id").empty();
+                                   opforregion += "<option selected disabled>Choose a region ....</option>";
+                                   
+                                   console.log(response);
+                                   for(let y=0 ; y<response.data.length; y++){
+                                        opforregion += `<option value="${response.data[y].id}">${response.data[y].name}</option>`;
+                                   }
+
+                                   $(".region_id").append(opforregion);
+                              },
+                              error:function(response){
+                                   console.log("Error:( ",response);
+                                   // console.log("Error:( ",response.responseText);
+                              }
+                         });
+                    });
+                    // End Dynamic Select Option
+
+                    // Start Edit Form
+                    $(document).on("click",".editform",async function(e){
+                         const getcountryid = $(this).attr("data-country");
+                         // console.log(getcountryid);
+                         let opforcity = "";
+
+                         await $.ajax({
+                              url: `/api/filter/cities/${getcountryid}`,
+                              type: "GET",
+                              dataType:"json",
+                              success:function(response){
+                                   console.log(response);
+                                   $(".city_id").empty();
+                                   opforcity += "<option selected disabled>Choose a city abcd</option>";
+                                   
+                                   console.log(response);
+                                   for(let x=0 ; x<response.data.length; x++){
+                                        opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                                   }
+
+                                   $(".city_id").append(opforcity);
+
+                                   // console.log(e.target.parentElement);
+                                   // $("#editcity_id").val($(e.target.parentElement).attr("data-city"));
+
+                              },
+                              error:function(response){
+                                   console.log("Error:( ",response);
+                              }
+                         });
+
+                         const getcityid = $(this).attr("data-city");
+                         let opforregion = "";
+                         await $.ajax({
+                              url: `/api/filter/regions/${getcityid}`,
+                              type: "GET",
+                              dataType:"json",
+                              success:function(response){
+                                   // console.log(response);
+                                   $(".region_id").empty();
+                                   opforregion += "<option selected disabled>Choose a region ....</option>";
+                                   
+                                   console.log(response);
+                                   for(let y=0 ; y<response.data.length; y++){
+                                        opforregion += `<option value="${response.data[y].id}">${response.data[y].name}</option>`;
+                                   }
+
+                                   $(".region_id").append(opforregion);
+
+                                   // $("#editregion_id").val($(e.target.parentElement).attr("data-region"));
+                              },
+                              error:function(response){
+                                   console.log("Error:( ",response);
+                                   // console.log("Error:( ",response.responseText);
+                              }
+                         });
+
+
+
+
+                         // console.log($(this).attr("data-id"),$(this).attr("data-name"));
+                         
+                         $("#editname").val($(this).attr("data-name"));
+                         $("#editcountry_id").val($(this).attr("data-country"));
+                         $("#editcity_id").val($(this).attr("data-city"));
+                         $("#editregion_id").val($(this).attr("data-region"));
+                         $("#editstatus_id").val($(this).attr("data-status"));
+
+                         const getid = $(this).attr("data-id");
+                         $("#formaction").attr("action",`/townships/${getid}`);
+
+                         e.preventDefault();
+                    });
+                    // End Edit Form
+
+          =Inefficienciy in changing country 
+               Thailand > Bangkok > Asoke 
+               Myanmar > Choose a city > Asoke
+               *Region still remain 
+
+               Thailand > Bangkok > ____
+               *Clear region options
+               *Info option must put
+
+
+               Thailand > Bangkok > Asoke 
+               Myanmar > Choose a city > Choose a region 
+               *Country change reset both city and region
+
+
 
 
 

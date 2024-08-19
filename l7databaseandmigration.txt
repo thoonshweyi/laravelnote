@@ -471,3 +471,52 @@ Schema::create('posts', function (Blueprint $table) {
 
 
 2DB
+
+
+=> TRIGGER
+     DELIMITER // 
+
+     CREATE TRIGGER 
+
+     DELIMITER ; 
+
+     *Trigger Event, Trigger Time 
+     Before Insert 
+     After Insert 
+     Before Update 
+     After Update 
+     Before Delete 
+     After Delete 
+
+     bfc 
+     afc 
+     bfu     
+     afu
+     bfd 
+     afd 
+
+     php artisan make:migration create_triggertablename_trigger 
+     php artisan migrate 
+
+     public function up():void{
+          \DB::unprepared('
+               CREATE TRIGGER triggername_bfc
+               BEFORE INSERT ON tablename FOR EACH ROW 
+               BEGIN 
+                    IF THEN 
+                    END IF;
+
+                    INSERT INTO ....
+               END
+
+               
+          ');
+     }
+     public function down():void{
+          \DB::unprepared('DROP TRIGGER IF EXISTS triggername_bfc');
+     } 
+
+     - to execute an SQL statement without binding any values.
+     Complex SQL Queries: When you need to run complex SQL queries that are not easily expressed using Laravel's query builder.
+     DDL Statements: For executing data definition language statements like CREATE TABLE, ALTER TABLE, etc.
+     Performance: When you need to run a raw SQL query for performance reasons, bypassing the query builder's processing.
