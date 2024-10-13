@@ -959,7 +959,7 @@
           =Migration
                php artisan make:model Post -m
                
-               =crate_posts_table.php
+               =create_posts_table.php
                     $table->string("image")->nullable();
                     $table->string("title");
                     $table->string("slug");
@@ -2069,7 +2069,7 @@
           =Migration
           php artisan make:model Attendance -m
           
-          =crate_attendances_table.php
+          =create_attendances_table.php
                $table->date("classdate");
                $table->unsignedBigInteger("post_id");
                $table->string("attcode");    
@@ -22769,8 +22769,2843 @@
                Myanmar > Choose a city > Choose a region 
                *Country change reset both city and region
 
+     =>Multi Student Phone 
+          php artisan make:model StudentPhone -m 
+          
+          =In crreate_student_phones_table 
+               up()
+                    $table->foreignId("student_id")->constrained()->onDelete("cascade");
+                    $table->string("phone")->nullable();
+
+          =In StudentPhone.php 
+               protected $table = "student_phones";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "student_id",
+                    "phone",
+               ];
+
+               public function student(){
+                    return $this->belongsTo(Student::class); 
+               }
 
 
+          =In Student.php 
+               public function studentphones(){
+                    return $this->hasMany(StudentPhone::class); 
+               }
+
+          php artisan make:controller StudentPhonesController
+
+          
+          =In create.blade.php 
+               <div id="multiphone" class="col-md-3 form-group mb-3 createpage">
+                    <label for="phone">Phone<span class="text-danger">*</span></label>
+                    <div class="input-group phonelimit">
+                         <input type="text" name="phone[]" id="phone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" value="{{ old('lastname')}}"/>
+                         <span id="addphone" class="input-group-text" style="font-size:10px; cursor:pointer;"><i class="fas fa-plus-circle"></i></span>
+                    </div>
+               </div>
+
+               // Start Add / Remove Phone for (createpage/editpage)
+               //   Note:: do not forget to put multiphone, createpage or editpage / phone selector names 
+                    $(document).on("click","#addphone",function(){
+                         addnewinput();
+                    });
+                    function addnewinput(){
+                         const maxnumber = 3;
+                         let getphonelimit = $(".phonelimit").length;
+
+                         let newinput;
+                         if(getphonelimit < maxnumber){
+                              if($("#multiphone").hasClass("createpage")){
+                                   newinput = `
+                                   <div class="input-group phonelimit">
+                                        <input type="text" name="phone[]" id="phone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" />
+                                        <span id="" class="input-group-text removephone" style="font-size:10px; cursor:pointer;color:red;"><i class="fas fa-minus-circle"></i></span>
+                                   </div>
+                                   `;
+                                   $("#multiphone").append(newinput);
+                              }
+                         }
+                    }
+
+                    $(document).on("click",".removephone",function(){
+                         $(this).parent().remove();
+                    });
+               // End Add / Remove Phone for (createpage/editpage)
+          =In StudentsController.php 
+               $student->save();
+               
+               //Create New Student Phone 
+               if(!empty($request["phone"])){
+                    // Method 1
+
+                    // foreach($request["phone"] as $phone){
+                    //     $phonedatas = [
+                    //         'student_id'=> $student["id"],
+                    //         'phone'=>$phone
+                    //     ];
+                    //     StudentPhone::insert($phonedatas);
+                    // }
+
+
+                    // Method 2
+                    foreach($request->phone as $phone){
+                         $student->studentphones()->create([
+                         'student_id'=> $student["id"],
+                         'phone'=>$phone
+                         ]);
+                    }
+
+               }
+
+
+          =In phpmyadmin 
+               `students`
+                    20	WDF00005	Tun	Lin	tun	Hello Sir	1	1	2024-08-25 16:19:40	2024-08-25 16:19:40	
+                    21	WDF00021	Zaw	Maung	zaw	I am freshser.	1	1	2024-08-25 16:22:28	2024-08-25 16:22:28	
+                    22	WDF00022	Thri	Swe	thri	Hola	1	1	2024-08-25 16:23:00	2024-08-25 16:23:00	
+
+               `student_phones`
+                    id	student_id	phone	created_at	updated_at	
+                    4	20	          1	     NULL	NULL	
+                    5	20	          2	     NULL	NULL	
+                    6	20	          3	     NULL	NULL	
+                    7	21	          1	     NULL	NULL	
+                    8	21	          2	     NULL	NULL	
+                    9	22	          NULL	     NULL	NULL	
+
+                    *only checking phone array count() put null values to phone column
+                         if(count($request["phone"]) > 0){
+                         if(isset($request["phone"])){
+
+                    // dd(count($request->phone)); // 1
+                    // dd($request->phone); // array:1 [0 => null]
+
+          =In StudentController.php 
+               public function edit(string $id)
+               {
+                    $student = Student::findOrFail($id);
+                    $studentphones = StudentPhone::where("student_id",$id)->get();
+                    return view("students.edit")->with("student",$student)->with("studentphones",$studentphones);
+               }
+
+          =>Edit Multi Phone Number 
+               Condition 
+               Old phone numbers 
+               Add new phone numbers 
+               Add new phone numbers + Change old phone number 
+               Old phone number + Add new phone number + Change old phone number
+               
+               =In web.php 
+                    Route::get("studentphones/delete/{id}",[StudentPhonesController::class,'destroy'])->name("studentphones.delete");
+
+               =In StudentPhonesController.php 
+                    public function destroy($id){
+                         $studentphone = StudentPhone::find($id);
+                         $studentphone->delete();
+                         session()->flash("info","Delete");
+                         return redirect()->back();
+                    }
+
+
+               =In students > edit.blade.php 
+                    <div id="multiphone" class="col-md-3 form-group mb-3 editpage">
+                         <label for="phone">Phone<span class="text-danger">*</span></label>
+                         @foreach($studentphones as $studentphone)
+                              <input type="hidden" name="studentphoneid[]" id="studentphoneid" value="{{$studentphone->id}}"/>
+                              <div class="input-group phonelimit">
+                                   <input type="text" name="phone[]" id="phone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" value="{{ $studentphone->phone }}"/>
+                                   
+                                   @if($studentphones->count() > 1)
+                                        <a href="{{ route('studentphones.delete',$studentphone->id) }}" class="input-group-text">
+                                             <span id="" class="removephone" style="font-size:10px; cursor:pointer;color:red;"><i class="fas fa-minus-circle"></i></span>
+                                        </a>
+                                   @endif
+                                   <span id="addphone" class="input-group-text" style="font-size:10px; cursor:pointer;"><i class="fas fa-plus-circle"></i></span>
+
+                              </div>
+                         @endforeach
+                         
+                    </div>
+
+
+                    // Start Add / Remove Phone for (createpage/editpage)
+                    //   Note:: do not forget to put multiphone, createpage or editpage / phone selector names 
+                         $(document).on("click","#addphone",function(){
+                              // console.log("hola");
+                              addnewinput();
+                         });
+                         function addnewinput(){
+                              const maxnumber = 3;
+                              let getphonelimit = $(".phonelimit").length;
+
+                              let newinput;
+                              if(getphonelimit < maxnumber){
+                                   if($("#multiphone").hasClass("createpage")){
+                                        newinput = `
+                                        <div class="input-group phonelimit">
+                                             <input type="text" name="phone[]" id="phone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" />
+                                             <span id="removephone" class="input-group-text" style="font-size:10px; cursor:pointer;color:red;"><i class="fas fa-minus-circle"></i></span>
+                                        </div>
+                                        `;
+                                        $("#multiphone").append(newinput);
+                                   }else if($("#multiphone").hasClass("editpage")){
+                                        newinput = `
+                                        <div class="input-group phonelimit">
+                                             <input type="text" name="newphone[]" id="newphone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" />
+                                             <span id="" class="input-group-text removephone" style="font-size:10px; cursor:pointer;color:red;"><i class="fas fa-minus-circle"></i></span>
+                                        </div>
+                                        `;
+                                        $("#multiphone").append(newinput);
+                                   }
+                              }
+                         }
+                         $(document).on("click",".removephone",function(){
+                              $(this).parent().remove();
+                         });
+                    // End Add / Remove Phone for (createpage/editpage)
+
+               =In StudentsController.php 
+                    public function update(Request $request, string $id)
+                    {
+                         ....
+                         $student->save();
+
+                         //Create/Update New Student Phone 
+                         if(!empty($request["newphone"])){
+                              // Method 1
+
+                              // extend new phone
+                              foreach($request["newphone"] as $newphone){
+                                   $newphonedatas = [
+                                        'student_id'=> $student["id"],
+                                        'phone'=>$newphone
+                                   ];
+                                   StudentPhone::insert($newphonedatas);
+
+                              }
+                         
+                              foreach($request->phone as $key=>$phone){
+                                   StudentPhone::findOrFail($request["studentphoneid"][$key])->update([
+                                        'phone'=>$phone
+                                   ]);
+                              }
+
+                    
+
+                         }else{
+                              // update existing phone 
+                              foreach($request->phone as $key=>$phone){
+                                   StudentPhone::findOrFail($request["studentphoneid"][$key])->update([
+                                        'phone'=>$phone
+                                   ]);
+                              }
+                         }
+
+                         return redirect(route("students.index"));
+                    }
+
+          =>My idea of saving multiple phone numbmers 
+               Create phones as usual by giving dynamic ids 
+               Edit phone 
+                    remove button work only within UI. Instantly delete phone input.
+                    all student phones in dummy table are firstly removed.
+                    phone[] are newly store at dummy table.
+
+                    After removing phone input in ui,
+                         if there remain only one phone, don't allow to delete and hide remove btn for the last phone input.
+
+     =>Relation 
+          php artisan make:model Religion -m
+
+
+          =Migration 
+               =In create_religions_table.php 
+                    up()
+                         $table->string("name")->unique();
+                         $table->string("slug");
+                         $table->unsignedBigInteger("status_id");
+                         $table->unsignedBigInteger("user_id");
+
+               =In Religion.php 
+                    protected $table = "religions";
+                    protected $primaryKey = "id";
+                    protected $fillable = [
+                         "name",
+                         "slug",
+                         "status_id",
+                         "user_id"
+                    ];
+
+                    public function status(){
+                         return $this->belongsTo(Status::class);
+                    }
+
+                    public function user(){
+                         return $this->belongsTo(User::class);
+                    }
+
+          =In web.php 
+               Route::resource("religions",ReligionsController::class);
+               Route::get("/religionsstatus",[ReligionsController::class,"typestatus"]);
+               Route::delete("/religionsbulkdeletes",[ReligionsController::class,"bulkdeletes"])->name("religions.bulkdeletes");
+
+          php artisan make:controller ReligionsController
+
+          =In ReligionsController.php 
+               public function index()
+               {
+                    $religions = Religion::all();
+                    $statuses = Status::whereIn("id",[3,4])->get();
+                    return view("religions.index",compact("religions","statuses"));
+               }
+
+
+               public function create()
+               {
+                    $statuses = Status::whereIn("id",[3,4])->get();
+                    return view("religions.create",compact("statuses"));
+               }
+
+
+               public function store(Request $request)
+               {
+                    $this->validate($request,[
+                         "name" => "required|max:50|unique:religions",
+                         "status_id" => "required|in:3,4",
+                    ],[
+                         "name.required"=>"Religion Name is required"
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $religion = new Religion();
+                    $religion->name = $request["name"];
+                    $religion->slug = Str::slug($request["name"]);
+                    $religion->status_id = $request["status_id"];
+                    $religion->user_id = $user_id;
+                    $religion->save();
+                    return redirect(route("religions.index"));
+               }
+               
+               public function update(Request $request, string $id)
+               {
+                    $this->validate($request,[
+                         "name" => ["required","max:50","unique:religions,name,".$id],
+                         "status_id" => ["required","in:3,4"],
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user["id"];
+
+                    $religion = Religion::findOrFail($id);
+                    $religion->name = $request["name"];
+                    $religion->slug = Str::slug($request["name"]);
+                    $religion->status_id = $request["status_id"];
+                    $religion->user_id = $user_id;
+                    $religion->save();
+                    return redirect(route("religions.index"));
+               }
+
+
+               public function destroy(string $id)
+               {
+                    $religion = Religion::findOrFail($id);
+                    $religion->delete();
+                    return redirect()->back();
+               }
+
+               public function typestatus(Request $request){
+                    $religion = Religion::findOrFail($request["id"]);
+                    $religion->status_id = $request["status_id"];
+                    $religion->save();
+               
+                    return response()->json(["success"=>"Status Change Successfully"]);
+               }
+
+          =In 
+     =>Lead 
+          Newcomer > Lead > Student 
+
+          =Microfinance 
+               Stranger > Lead > Borrower 
+                         10 infos        30 infos 
+                                   Pipe (Move some little information) 
+
+          =Can settle Student Level 1,2,3
+               - to obtain more information from student 
+               - to raise awareness of appication 
+               - to get user intention
+
+
+          php artisan make:model Lead -m
+          =In create_leads_table.php 
+               $table->string("leadnumber")->unique();
+               $table->string("firstname");
+               $table->string("lastname")->nullable();
+               $table->unsignedBigInteger("gender_id");
+               $table->integer("age");
+               $table->string("email");
+               $table->unsignedBigInteger("country_id");
+               $table->unsignedBigInteger("city_id");
+               $table->unsignedBigInteger("user_id")->nullable();
+               $table->boolean("converted")->default(false);
+               $table->unsignedBigInteger("student_id")->nullable();
+
+          =In Lead.php 
+                              
+               protected $table = "leads";
+               protected $primaryKey = "id";
+               protected $fillable = [
+                    "leadnumber",
+                    "firstname",
+                    "lastname",
+                    "gender_id",
+                    "age",
+                    "email",
+                    "country_id",
+                    "city_id",
+                    "user_id",
+                    "converted",
+                    "student_id"
+               ];
+
+               public function country(){
+                    return $this->belongsTo(Country::class); // send all column
+               }
+
+               public function city(){
+                    return $this->belongsTo(City::class); // send all column
+               }
+
+
+               public function gender(){
+                    return $this->belongsTo(Gender::class); // send all column
+               }
+
+               public function lead(){
+                    return $this->belongsTo(Gender::class); // send all column
+               }
+
+               public function user(){
+                    return $this->belongsTo("App\Models\User"); // send all column
+               }
+               protected static function boot(){
+                    parent::boot();
+
+                    static::creating(function($lead){
+                         $lead->leadnumber = self::generateleadid();
+                    });
+               }
+
+               protected static function generateleadid(){
+                    return \DB::transaction(function(){
+                         $latestlead = \DB::table("leads")->orderBy("id","desc")->first();
+                         $latestid= $latestlead ?  $latestlead->id : 0;
+                         $newleadid = "LD".str_pad($latestid+1,8,"0",STR_PAD_LEFT);
+                         
+                         while(\DB::table("leads")->where("leadnumber",$newleadid)->exists()){
+                              $latestid++;
+                              $newleadid = "LD".str_pad($latestid+1,8,"0",STR_PAD_LEFT);
+                         }
+                         return $newleadid;
+                    });
+               }
+
+               public function leadphones(){
+                    return $this->hasMany(leadPhone::class); 
+               }
+
+          =In web.php 
+               Route::resource("leads",LeadsController::class);
+               Route::post("leads/pipelines/{id}",[LeadsController::class,"converttostudent"])->name("leads.pipeline");
+
+          php artisan make:controller LeadsController
+               
+          =In leads > create.blade.php 
+               <form action="/leads" method="POST">
+                    @csrf
+
+                    <div class="row">
+                         <div class="col-md-3 mb-3">
+                              <label for="firstname">First Name <span class="text-danger">*</span></label>
+                              <input type="text" name="firstname" id="firstname" class="form-control form-control-sm rounded-0" placeholder="Enter First name" value="{{ old('firstname') }}"/>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="lastname">Last Name <span class="text-danger">*</span></label>
+                              <input type="text" name="lastname" id="lastname" class="form-control form-control-sm rounded-0" placeholder="Enter Last Name" value="{{ old('lastname')}}"/>
+                         </div>
+
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="gender_id">Gender <span class="text-danger">*</span></label>
+                              <select name="gender_id" id="gender_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a gender</option>
+                                   @foreach($genders as $gender)
+                                        <option value="{{$gender['id']}}">{{$gender['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="age">Age <span class="text-danger">*</span></label>
+                              <input type="number" name="age" id="age" class="form-control form-control-sm rounded-0" placeholder="Enter Your Age" value="{{ old('age')}}"/>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="email">Email <span class="text-danger">*</span></label>
+                              <input type="email" name="email" id="email" class="form-control form-control-sm rounded-0" placeholder="Enter Your Email" value="{{ old('email')}}"/>
+                         </div>
+
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="country_id">Country</label>
+                              <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0 country_id">
+                                   <option value="" selected disabled>Choose a country</option>
+                                   @foreach($countries as $country)
+                                        <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="city_id">City</label>
+                              <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0 city_id">
+                                   <option value="" selected disabled>Choose a city</option>
+                              </select>
+                         </div>
+
+
+                         {{-- <div class="col-md-4 mb-3">
+                              <label for="regnumber">Register Number <span class="text-danger">*</span></label>
+                              <input type="text" name="regnumber" id="regnumber" class="form-control form-control-sm rounded-0" placeholder="Enter Register Number" autocomplete="off" value="{{ old('regnumber')}}"/>
+                              @error("regnumber")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                         </div>
+
+                         --}}
+
+                         <div class="col-md-12">
+                              <div class="d-flex justify-content-end">
+                                   <a href="{{route('leads.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                              <button type="submit" class="btn btn-secondary btn-sm rounded-0">Submit</button>
+                              </div>
+                         </div>
+                    </div>
+               </form>
+
+
+               // Start Dynamic Select Option 
+               $(document).on("change",".country_id",function(){
+                    const getcountryid = $(this).val();
+                    // console.log(getcountryid);
+
+                    let opforcity = "";
+                    $.ajax({
+                         url: `/api/filter/cities/${getcountryid}`,
+                         type: "GET",
+                         dataType:"json",
+                         success:function(response){
+                              $(".city_id").empty();
+                              opforcity += "<option selected disabled>Choose a city abcd</option>";
+                              
+                              console.log(response);
+                              for(let x=0 ; x<response.data.length; x++){
+                                   opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                              }
+
+                              $(".city_id").append(opforcity);
+                         },
+                         error:function(response){
+                              console.log("Error:( ",response);
+                         }
+                    });
+               });
+               // End Dynamic Select Option
+          =In leads > edit.blade.php 
+
+               <form action="/leads/{{$lead->id}}" method="POST">
+                    @csrf
+                    @method("PUT")
+
+                    <div class="row">
+                         <div class="col-md-4 mb-3">
+                              <label for="firstname">First Name <span class="text-danger">*</span></label>
+                              <input type="text" name="firstname" id="firstname" class="form-control form-control-sm rounded-0" placeholder="Enter First name" value="{{$lead->firstname}}"/>
+                         </div>
+
+                         <div class="col-md-4 mb-3">
+                              <label for="lastname">Last Name <span class="text-danger">*</span></label>
+                              <input type="text" name="lastname" id="lastname" class="form-control form-control-sm rounded-0" placeholder="Enter Last Name" value="{{$lead->lastname}}"/>
+                         </div>
+
+                         
+                         
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="gender_id">Gender <span class="text-danger">*</span></label>
+                              <select name="gender_id" id="gender_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" selected disabled>Choose a gender</option>
+                                   @foreach($genders as $gender)
+                                        <option value="{{$gender['id']}}">{{$gender['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="age">Age <span class="text-danger">*</span></label>
+                              <input type="number" name="age" id="age" class="form-control form-control-sm rounded-0" placeholder="Enter Your Age" value="{{ old('age')}}"/>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="email">Email <span class="text-danger">*</span></label>
+                              <input type="email" name="email" id="email" class="form-control form-control-sm rounded-0" placeholder="Enter Your Email" value="{{ old('email')}}"/>
+                         </div>
+
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="country_id">Country</label>
+                              <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0 country_id">
+                                   <option value="" disabled>Choose a country</option>
+                                   @foreach($countries as $country)
+                                        <option value="{{$country['id']}}" {{ $country['id'] === $lead->country_id ? 'selected' : '' }}>{{$country['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="city_id">City</label>
+                              <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0 city_id">
+                                   <option value="" disabled>Choose a city</option>
+                                   @foreach($cities as $city)
+                                        <option value="{{$city['id']}}" {{ $city['id'] === $lead->city_id ? 'selected' : 'hidden' }}>{{$city['name']}}</option>
+                                   @endforeach  
+                              </select>
+                         </div>
+
+
+                         <div class="col-md-12">
+                              <div class="d-flex justify-content-end">
+                                   <a href="{{route('leads.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                                   <button type="submit" class="btn btn-secondary btn-sm rounded-0">Update</button>
+                              </div>
+                         </div>
+                    </div>
+               </form>
+
+               // Start Dynamic Select Option 
+               $(document).on("change",".country_id",function(){
+                    const getcountryid = $(this).val();
+                    // console.log(getcountryid);
+
+                    let opforcity = "";
+                    $.ajax({
+                         url: `/api/filter/cities/${getcountryid}`,
+                         type: "GET",
+                         dataType:"json",
+                         success:function(response){
+                              $(".city_id").empty();
+                              opforcity += "<option selected disabled>Choose a city abcd</option>";
+                              
+                              console.log(response);
+                              for(let x=0 ; x<response.data.length; x++){
+                                   opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                              }
+
+                              $(".city_id").append(opforcity);
+                         },
+                         error:function(response){
+                              console.log("Error:( ",response);
+                         }
+                    });
+               });
+               // End Dynamic Select Option
+          =In leads > index.blade.php 
+               <table id="mytable" class="table table-sm table-hover border">
+          
+                    <thead>
+                         <th>No</th>
+                         <th>Lead Number</th>
+                         <th>Name</th>
+                         <th>Gender</th>
+                         <th>Age</th>
+                         <th>Email</th>
+                         <th>Pipe</th>
+                         <th>By</th>
+                         <th>Created At</th>
+                         <th>Updated At</th>
+                         <th>Action</th>
+                    </thead>
+          
+                    <tbody>
+                         @foreach($leads as $idx=>$lead)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              <td><a href="{{route('leads.show',$lead->id)}}">{{$lead->leadnumber}}</a></td>
+                              <td>{{$lead->firstname}} {{$lead->lastname}}</td>
+                              <td>{{$lead->gender['age']}} </td>
+                              <td>{{$lead->age}} </td>
+                              <td>{{ $lead->email }}</td>
+                              <td><span class="badge {{ $lead->converted ? 'bg-success' : 'bg-danger' }}">Pipe</span></td>
+                              <td>{{ $lead->user["name"] }}</td>
+                              <td>{{ $lead->created_at->format('d M Y') }}</td>
+                              <td>{{ $lead->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="{{ route('leads.edit',$lead->id) }}" class="text-info"><i class="fas fa-pen"></i></a>
+                              </td>
+                         </tr>
+                         @endforeach
+                    </tbody>
+               </table>
+          =In leads > show.blade.php 
+               <form action="{{ route('leads.pipeline',$lead->id) }}" method="POST" class="w-100">
+                    @csrf
+                    @method("POST")
+                    <button type="SUBMIT" class="w-100 btn btn-primary btn-sm rounded-0 me-2" {{ $lead->isconverted() ? 'disabled' : '' }}>Pipeline</button>
+               </form>
+          =In LeadsController.php 
+               public function index()
+               {
+                    $leads = Lead::all();
+                    return view("leads.index",compact("leads"));
+               }
+               public function create()
+               {
+                    $genders = Gender::orderBy("name","asc")->get();
+                    $countries = Country::orderBy("name","asc")->where("status_id",3)->get();
+                    return view("leads.create",compact("genders","countries"));
+               }
+
+               public function store(Request $request)
+               {   
+                    $this->validate($request,[
+                         "firstname"=>"required|string|max:100",
+                         "gender_id"=>"required|exists:genders,id",
+                         "age" => "required|integer|min:13|max:45",
+                         "email"=>"required|string|email|max:100|unique:leads",
+                         "country_id"=>"required|exists:countries,id",
+                         "city_id"=>"required|exists:cities,id",
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $lead = new Lead();
+                    $lead->firstname = $request["firstname"];
+                    $lead->lastname = $request["lastname"];
+                    $lead->gender_id = $request["gender_id"];
+                    $lead->age = $request["age"];
+                    $lead->email = $request["email"];
+                    $lead->country_id = $request["country_id"];
+                    $lead->city_id = $request["city_id"];
+
+                    $lead->user_id = $user_id;
+                    $lead->save();
+
+                    return redirect(route("leads.index"));
+               }
+
+               public function show(string $id)
+               {
+                    $lead = Lead::findOrFail($id);
+                    return view("leads.show",["lead"=>$lead]);
+               }
+
+               public function edit(string $id)
+               {
+                    $lead = Lead::findOrFail($id);
+                    $genders = Gender::orderBy("name","asc")->get();
+                    $countries = Country::orderBy("name","asc")->where("status_id",3)->get();
+                    $cities = City::orderBy("name","asc")->where("status_id",3)->get();
+                    return view("leads.edit")->with("lead",$lead)->with("genders",$genders)->with("countries",$countries)->with("cities",$cities);
+               }
+
+               public function update(Request $request, string $id)
+               {
+                    $this->validate($request,[
+                         "firstname"=>"required|string|max:100",
+                         "gender_id"=>"required|exists:genders,id",
+                         "age" => "required|integer|min:13|max:45",
+                         "email"=>"required|string|email|max:100|unique:leads,email,".$id,
+                         "country_id"=>"required|exists:countries,id",
+                         "city_id"=>"required|exists:cities,id",
+                    ]);
+
+                    $user = Auth::user();
+                    $user_id = $user->id;
+
+                    $lead = Lead::findOrFail($id);
+                    $lead->firstname = $request["firstname"];
+                    $lead->lastname = $request["lastname"];
+                    $lead->gender_id = $request["gender_id"];
+                    $lead->age = $request["age"];
+                    $lead->email = $request["email"];
+                    $lead->country_id = $request["country_id"];
+                    $lead->city_id = $request["city_id"];
+                    $lead->user_id = $user_id;
+                    $lead->save();
+
+                    return redirect(route("leads.index"));
+               }
+
+          
+          -institude staff or student can apply leads for their friends 
+          -For newcomers, they should apply lead form for their own. 
+
+          php artisan make:migration add_columns_to_students_table --table=students
+          =In add_columns_to_students_table.php 
+               up()
+                    $table->string('image')->nullable()->after('regnumber');
+                    $table->date('dob')->nullable()->after('slug');
+                    $table->unsignedBigInteger('gender_id')->after('dob');
+                    $table->integer('age')->after('gender_id');
+                    $table->string('email')->unique()->after('age');
+                    $table->unsignedBigInteger('country_id')->after('email');
+                    $table->unsignedBigInteger('city_id')->after('country_id');
+                    $table->unsignedBigInteger('region_id')->nullable()->after('city_id');
+                    $table->unsignedBigInteger('township_id')->nullable()->after('region_id');
+                    $table->string('address')->nullable()->after('township_id');
+                    $table->unsignedBigInteger('religion_id')->nullable()->after('address');
+                    $table->string("nationalid")->unique()->nullable()->after('religion_id');
+
+               down()
+                    $table->dropColumn(['image','dob','gender_id','age','email','country_id','city_id','region_id','township_id','address','religion_id','nationalid']);
+
+               php artisan migrate 
+               *Error
+               Illuminate\Database\UniqueConstraintViolationException 
+               SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '' for key 'students_email_unique' (Connection: mysql, SQL: alter table `students` add unique `students_email_unique`(`email`))
+               -columns are added but face migration error 
+               -because '' empty emails are duplicated themself
+
+          =In Student.php 
+               protected $fillable = [
+                    "regnumber",
+                    'image',
+                    "firstname",
+                    "lastname",
+                    "slug",
+                    'dob',
+                    'gender_id',
+                    'age',
+                    'email',
+                    'country_id',
+                    'city_id',
+                    'region_id',
+                    'township_id',
+                    'address',
+                    'religion_id',
+                    'nationalid',
+                    "remark",
+                    "status_id",
+                    "user_id"
+               ];
+
+               public function user(){
+                    return $this->belongsTo("App\Models\User"); // send all column
+               }
+
+               public function gender(){
+                    return $this->belongsTo(Gender::class); // send all column
+               }
+
+               public function country(){
+                    return $this->belongsTo(Country::class); // send all column
+               }
+
+               public function city(){
+                    return $this->belongsTo(City::class); // send all column
+               }
+
+               public function region(){
+                    return $this->belongsTo(Region::class); // send all column
+               }
+
+               public function township(){
+                    return $this->belongsTo(Township::class); // send all column
+               }
+
+               public function religion(){
+                    return $this->belongsTo(Religion::class); // send all column
+               }
+
+          =In LeadsController.php
+               public function converttostudent($id){
+                    $lead = Lead::findOrFail($id);
+                    $lead->converttostudent();
+
+                    session()->flash("success","Pipe Successfully");
+                    return redirect()->back();
+               }
+
+          =In Lead.php 
+               public function converttostudent(){
+                    // student create 
+                    $student = Student::create([
+                         "firstname"=>$this->firstname,
+                         "lastname"=>$this->lastname,
+                         "slug"=>Str::slug($this->firstname),
+                         "gender_id"=>$this->gender_id,
+                         "age"=>$this->age,
+                         "email"=>$this->email,
+                         "country_id"=>$this->country_id,
+                         "city_id"=>$this->city_id,
+                         "user_id"=>$this->user_id,
+                    ]);
+
+                    // create empty phone (cuz - input box only appear for provided phone numbers in edit page)
+                    StudentPhone::create([
+                         'student_id'=>$student->id,
+                         'phone'=>null
+                    ]);
+
+                    // lead update
+                    $this->update(["converted"=>true,'student_id'=>$student->id]);
+                    return $student;
+               }
+
+               public function isconverted(){
+                    return $this->converted === 1;
+               }
+
+          *=>Restrict the changes after converted to student 
+               =In leads > edit.blade.php 
+                    @if($lead->isconverted())
+                         <small>this lead have already been converted to a student. Editing is disabled.</small>
+                    @endif
+
+                    <div class="col-md-12">
+                         <div class="d-flex justify-content-end">
+                              <a href="{{route('leads.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                              <button type="submit" class="btn btn-secondary btn-sm rounded-0" {{$lead->isconverted() ? 'disabled' : ''}}>Update</button>
+                         </div>
+                    </div>
+               =In LeadsController.php 
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              "firstname"=>"required|string|max:100",
+                              "gender_id"=>"required|exists:genders,id",
+                              "age" => "required|integer|min:13|max:45",
+                              "email"=>"required|string|email|max:100|unique:leads,email,".$id,
+                              "country_id"=>"required|exists:countries,id",
+                              "city_id"=>"required|exists:cities,id",
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user->id;
+
+                         
+
+                         $lead = Lead::findOrFail($id);
+                         $lead->firstname = $request["firstname"];
+                         $lead->lastname = $request["lastname"];
+                         $lead->gender_id = $request["gender_id"];
+                         $lead->age = $request["age"];
+                         $lead->email = $request["email"];
+                         $lead->country_id = $request["country_id"];
+                         $lead->city_id = $request["city_id"];
+                         $lead->user_id = $user_id;
+
+                         if($lead->isconverted()){
+                              return redirect()->back()->with('error',"Editing is disabled.");
+                         }
+                         $lead->save();
+
+                         
+
+                         return redirect(route("leads.index"));
+                    }
+          
+          =>Restrict Pipeline to converted student
+               <form action="{{ route('leads.pipeline',$lead->id) }}" method="POST" class="w-100">
+                    @csrf
+                    @method("POST")
+                    <button type="SUBMIT" class="w-100 btn btn-primary btn-sm rounded-0 me-2" {{ $lead->isconverted() ? 'disabled' : '' }}>Pipeline</button>
+               </form>
+
+          =Lead Testing 
+               =Create a lead 
+               =Pipeline to student 
+               =*Check Pipeline button (At show page)
+               =*Check Updae button(At edit page)
+          
+          =Lead Flow 
+               Lead > (Pipe) > Student 
+               I. Registered by staffs or colleges
+                    Admin/ Friends -> Proxy Register ->->Student
+                                   = Create a New Lead
+                                   = Create User Account
+                                   = Attach new user account to Lead
+                                   = Lead become Student and assign lead account to Student
+                                   =/ Lead has their corespond initiator
+               II. Seft Registered
+                    Fresher -> Self Register ->->   
+                         = Create User Account   
+                         = Register as a lead 
+                         = Attach new user account to Lead
+                         = Lead become Student and assign lead account to Student
+
+          =Student Data Correction 
+               Lead > Student (Wrong Data) > Edit a student
+               =In students > edit.blade.php 
+               <form action="/students/{{$student->id}}" method="POST">
+                    @csrf
+                    @method("PUT")
+
+                    <div class="row">
+                         <div class="col-md-3 mb-3">
+                              <label for="firstname">First Name <span class="text-danger">*</span></label>
+                              <input type="text" name="firstname" id="firstname" class="form-control form-control-sm rounded-0" placeholder="Enter First name" value="{{$student->firstname}}"/>
+                              @error("firstname")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="lastname">Last Name <span class="text-danger">*</span></label>
+                              <input type="text" name="lastname" id="lastname" class="form-control form-control-sm rounded-0" placeholder="Enter Last Name" value="{{$student->lastname}}"/>
+                              @error("lastname")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                         </div>
+
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="gender_id">Gender <span class="text-danger">*</span></label>
+                              <select name="gender_id" id="gender_id" class="form-control form-control-sm rounded-0">
+                                   <option value="" disabled>Choose a gender</option>
+                                   @foreach($genders as $gender)
+                                        {{--  <option value="{{$gender['id']}}" {{ $gender['id'] == $student->gender_id ? 'selected' : '' }}>{{$gender['name']}}</option> --}}
+                                        <option value="{{$gender['id']}}" {{ $gender['id'] == old('gender_id',$student->gender_id) ? 'selected' : '' }}>{{$gender['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+
+                         
+
+                         <div class="col-md-3 mb-3">
+                              <label for="age">Age <span class="text-danger">*</span></label>
+                              <input type="number" name="age" id="age" class="form-control form-control-sm rounded-0" placeholder="Enter Your Age" value="{{ old('age',$student->age)}}"/>
+                         </div>
+
+                         <div class="col-md-3 mb-3">
+                              <label for="email">Email <span class="text-danger">*</span></label>
+                              <input type="email" name="email" id="email" class="form-control form-control-sm rounded-0" placeholder="Enter Your Email" value="{{ old('email',$student->email)}}"/>
+                         </div>
+
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="country_id">Country</label>
+                              <select name="country_id" id="country_id" class="form-control form-control-sm rounded-0 country_id">
+                                   <option value="" disabled>Choose a country</option>
+                                   @foreach($countries as $country)
+                                        <option value="{{$country['id']}}" {{ $country['id'] === $student->country_id ? 'selected' : '' }}>{{$country['name']}}</option>
+                                   @endforeach     
+                              </select>
+                         </div>
+                         <div class="col-md-3 form-group mb-3">
+                              <label for="city_id">City</label>
+                              <select name="city_id" id="city_id" class="form-control form-control-sm rounded-0 city_id">
+                                   <option value="" disabled>Choose a city</option>
+                                   @foreach($cities as $city)
+                                        <option value="{{$city['id']}}" {{ $city['id'] === $student->city_id ? 'selected' : '' }}>{{$city['name']}}</option>
+                                   @endforeach  
+                              </select>
+                         </div>
+
+                         <div id="multiphone" class="col-md-3 form-group mb-3 editpage">
+                              <label for="phone">Phone<span class="text-danger">*</span></label>
+                              @foreach($studentphones as $studentphone)
+                                   <input type="hidden" name="studentphoneid[]" id="studentphoneid" value="{{$studentphone->id}}"/>
+                                   <div class="input-group phonelimit">
+                                        <input type="text" name="phone[]" id="phone" class="form-control form-control-sm rounded-0 phone" placeholder="Enter Mobile Number" value="{{ $studentphone->phone }}"/>
+                                        
+                                        @if($studentphones->count() > 1)
+                                             <a href="{{ route('studentphones.delete',$studentphone->id) }}" class="input-group-text">
+                                                  <span id="" class="removephone" style="font-size:10px; cursor:pointer;color:red;"><i class="fas fa-minus-circle"></i></span>
+                                             </a>
+                                        @endif
+                                        <span id="addphone" class="input-group-text" style="font-size:10px; cursor:pointer;"><i class="fas fa-plus-circle"></i></span>
+
+                                   </div>
+                              @endforeach
+                              
+                         </div>
+
+                         <!-- <div class="col-md-4 mb-3">
+                              <label for="regnumber">Register Number <span class="text-danger">*</span></label>
+                              <input type="text" name="regnumber" id="regnumber" class="form-control form-control-sm rounded-0" placeholder="Enter Register Number" autocomplete="off" value="{{$student->regnumber}}"/>
+                              @error("regnumber")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                         </div> -->
+
+                         <div class="col-md-12 mb-3">
+                              <label for="remark">Remark</label>
+                              <textarea name="remark" id="remark" class="form-control rounded-0" rows="5" placeholder="Enter Remark">{{$student->remark}}</textarea>
+                              @error("remark")
+                                   <span class="text-danger">{{ $message }}<span>
+                              @enderror
+                         </div>
+
+                         <div class="col-md-12">
+                              <div class="d-flex justify-content-end">
+                                   <a href="{{route('students.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                                   <button type="submit" class="btn btn-secondary btn-sm rounded-0">Update</button>
+                              </div>
+                         </div>
+                    </div>
+               </form>
+
+               =In StudentsController.php 
+                    public function edit(string $id)
+                    {
+                         $student = Student::findOrFail($id);
+                         $studentphones = StudentPhone::where("student_id",$id)->get();
+                         
+                         $genders = Gender::orderBy("name","asc")->get();
+                         $countries = Country::orderBy("name","asc")->where("status_id",3)->get();
+                         $cities = City::orderBy("name","asc")->where("status_id",3)->where("country_id",$student->country_id)->get();
+                         
+                         return view("students.edit")->with("student",$student)->with("studentphones",$studentphones)->with("genders",$genders)->with("countries",$countries)->with("cities",$cities);
+                    }
+                    public function update(Request $request, string $id)
+                    {
+                         $this->validate($request,[
+                              // "regnumber" => "required|unique:students,regnumber",
+                              // "regnumber" => "required|unique:students,regnumber,".$id,
+                              "firstname"=>"required",
+                              "lastname"=>"required",
+                              "remark" => "max:1000"
+                         ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $student = Student::findOrFail($id);
+                    //    $student->regnumber = $request["regnumber"];
+                         $student->firstname = $request["firstname"];
+                         $student->lastname = $request["lastname"];
+                         $student->slug = Str::slug($request["firstname"]);
+                         $student->gender_id = $request["gender_id"];
+                         $student->age = $request["age"];
+                         $student->email = $request["email"];
+                         $student->country_id = $request["country_id"];
+                         $student->city_id = $request["city_id"];
+                         $student->remark = $request["remark"];
+                         $student->user_id = $user_id;
+
+                         $student->save();
+
+                         //Create/Update New Student Phone 
+                         if(!empty($request["newphone"])){
+                              // Method 1
+
+                              // extend new phone
+                              foreach($request["newphone"] as $newphone){
+                                   $newphonedatas = [
+                                        'student_id'=> $student["id"],
+                                        'phone'=>$newphone
+                                   ];
+                                   StudentPhone::insert($newphonedatas);
+
+                              }
+                         
+                              foreach($request->phone as $key=>$phone){
+                                   StudentPhone::findOrFail($request["studentphoneid"][$key])->update([
+                                        'phone'=>$phone
+                                   ]);
+                              }
+
+                    
+
+                         }else{
+                              // update existing phone 
+                              foreach($request->phone as $key=>$phone){
+                                   StudentPhone::findOrFail($request["studentphoneid"][$key])->update([
+                                        'phone'=>$phone
+                                   ]);
+                              }
+                         }
+
+                         return redirect(route("students.index"));
+                    }
+     
+
+     =>Web Login 
+          views > auth > login.blade.php           
+          =Original login.blade.php 
+               <x-guest-layout>
+               <!-- Session Status -->
+               <x-auth-session-status class="mb-4" :status="session('status')" />
+
+               <form method="POST" action="{{ route('login') }}">
+                    @csrf
+
+                    <!-- Email Address -->
+                    <div>
+                         <x-input-label for="email" :value="__('Email')" />
+                         <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
+                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mt-4">
+                         <x-input-label for="password" :value="__('Password')" />
+
+                         <x-text-input id="password" class="block mt-1 w-full"
+                                        type="password"
+                                        name="password"
+                                        required autocomplete="current-password" />
+
+                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                    </div>
+
+                    <!-- Remember Me -->
+                    <div class="block mt-4">
+                         <label for="remember_me" class="inline-flex items-center">
+                              <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
+                              <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
+                         </label>
+                    </div>
+
+                    <div class="flex items-center justify-end mt-4">
+                         @if (Route::has('password.request'))
+                              <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}">
+                                   {{ __('Forgot your password?') }}
+                              </a>
+                         @endif
+
+                         <x-primary-button class="ms-3">
+                              {{ __('Log in') }}
+                         </x-primary-button>
+                    </div>
+               </form>
+               </x-guest-layout>
+
+         =In login.blade.php 
+               @include("layouts.adminheader")
+               <div id="app">
+               <div class="vh-100 d-flex justify-content-center align-items-center">
+                    <div class="bg-white p-4">
+                         <h5>Sign In</h5>
+
+                         <form class="mt-3" action="{{ route('login') }}" method="POST">
+                              @csrf
+                              <div class="form-group mb-3">
+                                   <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Username" autofocus value="{{ old('email') }}"/>
+                                   @error('email')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group mb-3">
+                                   <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" value="{{ old('password') }}"/>
+                                   @error('password')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group">
+                                   <div class="d-flex">
+                                   <div class="form-check">
+                                        <input type="checkbox" name="" id="remember" class="form-check-input" {{ old('remember') ? 'checked' : '' }}/>
+                                        <label for="remember">Remember ME</label>
+                                   </div>
+                                   <div class="ms-auto">
+                                        <a href="{{ route('password.request') }}"><i class="fas fa-lock me-1"></i>Forgot Password ?</a>
+                                   </div>
+                                   </div>
+                              </div>
+
+                              <div class="d-grid">
+                                   <button type="submit" class="btn btn-info rounded-0">Log In</button>
+                              </div>
+                         </form>
+
+                         <!-- social login -->
+                         <div class="row">
+                              <div class="col-12 mt-2 text-center">
+                                   <a href="javascript:void(0);" class="btn" title="Login with Facebook"><i class="fab fa-facebook-f"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Google"><i class="fab fa-google"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Twitter"><i class="fab fa-twitter"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Github"><i class="fab fa-github"></i></a>
+                              </div>
+                         </div>
+
+                         <!-- register -->
+                         <div class="row">
+                              <div class="col-12 mt-2 text-center">
+                                   <small>Don't have an account?  <a href="{{ route('register') }}" class="text-primary ms-1">Sign Up</a></small>
+                              
+                              </div>
+                         </div>
+                    </div>
+               </div>
+               </div>
+               @include("layouts.adminfooter")
+
+          app\Http\Controllers\Auth
+          =In AuthenticatedSessionController
+                         /**
+               * Display the login view.
+               */
+               public function create(): View
+               {
+                    return view('auth.login');
+               }
+
+               /**
+                    * Handle an incoming authentication request.
+                    */
+               public function store(LoginRequest $request): RedirectResponse
+               {
+                    $request->authenticate();
+
+                    $request->session()->regenerate();
+
+                    return redirect()->intended(RouteServiceProvider::HOME);
+               }
+
+               /**
+                    * Destroy an authenticated session.
+                    */
+               public function destroy(Request $request): RedirectResponse
+               {
+                    Auth::guard('web')->logout();
+
+                    $request->session()->invalidate();
+
+                    $request->session()->regenerateToken();
+
+                    return redirect('/');
+               }
+
+          =Original register.blade.php 
+               <x-guest-layout>
+               <form method="POST" action="{{ route('register') }}">
+                    @csrf
+
+                    <!-- Name -->
+                    <div>
+                         <x-input-label for="name" :value="__('Name')" />
+                         <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
+                         <x-input-error :messages="$errors->get('name')" class="mt-2" />
+                    </div>
+
+                    <!-- Email Address -->
+                    <div class="mt-4">
+                         <x-input-label for="email" :value="__('Email')" />
+                         <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
+                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mt-4">
+                         <x-input-label for="password" :value="__('Password')" />
+
+                         <x-text-input id="password" class="block mt-1 w-full"
+                                        type="password"
+                                        name="password"
+                                        required autocomplete="new-password" />
+
+                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="mt-4">
+                         <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+
+                         <x-text-input id="password_confirmation" class="block mt-1 w-full"
+                                        type="password"
+                                        name="password_confirmation" required autocomplete="new-password" />
+
+                         <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                    </div>
+
+                    <div class="flex items-center justify-end mt-4">
+                         <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('login') }}">
+                              {{ __('Already registered?') }}
+                         </a>
+
+                         <x-primary-button class="ms-4">
+                              {{ __('Register') }}
+                         </x-primary-button>
+                    </div>
+               </form>
+               </x-guest-layout>
+
+          =In register.blade.php 
+               @include("layouts.adminheader")
+               <div id="app">
+               <div class="vh-100 d-flex justify-content-center align-items-center">
+                    <div class="bg-white p-4">
+                         <h5>Register</h5>
+
+                         <form class="mt-3" action="{{ route('register') }}" method="POST">
+                              @csrf
+
+                              <div class="form-group mb-3">
+                                   <input type="firstname" name="firstname" class="form-control @error('firstname') is-invalid @enderror" placeholder="First Name" autofocus value="{{ old('firstname') }}"/>
+                                   @error('firstname')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group mb-3">
+                                   <input type="lastname" name="lastname" class="form-control @error('lastname') is-invalid @enderror" placeholder="Last Name" autofocus value="{{ old('lastname') }}"/>
+                                   @error('lastname')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group mb-3">
+                                   <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Email" autofocus value="{{ old('email') }}"/>
+                                   @error('email')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group mb-3">
+                                   <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" value="{{ old('password') }}"/>
+                                   @error('password')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+
+                              <div class="form-group mb-3">
+                                   <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="Confirm Password" value="{{ old('password_confirmation') }}"/>
+                                   @error('password_confirmation')
+                                   <span class="invalid-feedback">
+                                   <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                              </div>
+                              <div class="d-grid">
+                                   <button type="submit" class="btn btn-info rounded-0">Sign Up</button>
+                              </div>
+                         </form>
+
+                         <!-- social login -->
+                         <div class="row">
+                              <small class="text-center text-muted mt-3">Sign up with</small>
+                              <div class="col-12 mt-2 text-center">
+                                   <a href="javascript:void(0);" class="btn" title="Login with Facebook"><i class="fab fa-facebook-f"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Google"><i class="fab fa-google"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Twitter"><i class="fab fa-twitter"></i></a>
+                                   <a href="javascript:void(0);" class="btn" title="Login with Github"><i class="fab fa-github"></i></a>
+                              </div>
+                         </div>
+
+                         <!-- register -->
+                         <div class="row">
+                              <div class="col-12 mt-2 text-center">
+                                   <small>Already have an account?  <a href="{{ route('login') }}" class="text-primary ms-1">Sign In</a></small>
+                              </div>
+                         </div>
+
+                         <!-- data policy -->
+                         <div class="row">
+                              <div class="col-12 mt-2 text-center text-muted">
+                                   <small>By clicking Sign Up, you agree to our  <a href="javascript:void(0);" class="text-primary fw-bold">Terms</a>, <a href="javascript:void(0);" class="text-primary fw-bold">Data Policy</a> and <a href="javascript:void(0);" class="text-primary fw-bold">Cookie Policy</a>. You may receive SMS notification from us.</small>
+                              </div>
+                         </div>
+                    </div>
+               </div>
+               </div>
+               @include("layouts.adminfooter")
+
+          *Wrong Concept 
+               - Country > City Dynamic Select Box script under register.blade.php 
+          
+          =In adminfooter.blade.php 
+               // Start Dynamic Select Option 
+               ...
+               // End Dynamic Select Option 
+
+          app > Http > Controllers > Auth 
+          =In RegisteredUserController.php 
+               public function create(): View
+               {
+                    $genders = Gender::orderBy("name","asc")->get();
+                    $countries = Country::orderBy("name","asc")->where("status_id",3)->get();
+                    return view('auth.register',compact('genders'),compact('countries'));
+               }
+ 
+               public function store(Request $request): RedirectResponse
+               {
+                    $request->validate([
+                         "firstname"=>"required|string|max:100",
+                         "lastname"=>"string|max:100",
+                         'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+                         'password' => ['required', 'confirmed', Rules\Password::defaults()],
+                         "gender_id"=>"required|exists:genders,id",
+                         "age" => "required|integer|min:13|max:45",
+                         "country_id"=>"required|exists:countries,id",
+                         "city_id"=>"required|exists:cities,id",
+                    ]);
+
+                    $user = User::create([
+                         'name' => $request["firstname"]." ".$request["lastname"],
+                         'email' => $request->email,
+                         'password' => Hash::make($request->password),
+                    ]);
+
+                    if($user->id){
+                         // create lead
+
+                         Lead::create([
+                              "firstname" => $request["firstname"],
+                              'lastname' => $request["lastname"],
+                              'gender_id' => $request["gender_id"],
+                              'age' => $request["age"],
+                              'email' => $request["email"],
+                              'country_id' => $request["country_id"],
+                              'city_id' => $request["city_id"],
+                              'user_id' => $user->id
+                         ]);
+                    }
+
+                    event(new Registered($user));
+
+                    Auth::login($user);
+
+                    return redirect(RouteServiceProvider::HOME);
+               }
+
+          =Register a newcomers (Self Service)
+               User Account > Lead > Student
+
+          =>Multi Step Register Form 
+               Route::get("/register/step1",[RegisteredUserController::class,"createstep1"])->name("register.step1");
+               Route::post("/register/step1",[RegisteredUserController::class,"storestep1"])->name("register.storestep1");
+
+               Route::get("/register/step2",[RegisteredUserController::class,"createstep2"])->name("register.step2");
+               Route::post("/register/step2",[RegisteredUserController::class,"storestep2"])->name("register.storestep2");
+
+               Route::get("/register/step3",[RegisteredUserController::class,"createstep3"])->name("register.step3");
+               Route::post("/register/step3",[RegisteredUserController::class,"storestep3"])->name("register.storestep3");
+
+
+               Route::middleware('auth')->group(function () {
+
+          views > auth >
+          =In registerstep1.blade.php
+               <h5>Access</h5>
+
+               <form class="mt-3" action="{{ route('register.storestep1') }}" method="POST">
+                    @csrf
+
+                    <div class="form-group mb-3">
+                         <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Email" autofocus value="{{ old('email') }}"/>
+                         @error('email')
+                         <span class="invalid-feedback">
+                         <strong>{{ $message }}</strong>
+                         </span>
+                         @enderror
+                    </div>
+
+                    <div class="form-group mb-3">
+                         <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" value="{{ old('password') }}"/>
+                         @error('password')
+                         <span class="invalid-feedback">
+                         <strong>{{ $message }}</strong>
+                         </span>
+                         @enderror
+                    </div>
+
+                    <div class="form-group mb-3">
+                         <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="Confirm Password" value="{{ old('password-confirmation') }}"/>
+                         @error('password_confirmation')
+                         <span class="invalid-feedback">
+                         <strong>{{ $message }}</strong>
+                         </span>
+                         @enderror
+                    </div>
+                    
+               
+                    <div class="d-grid">
+                         <button type="submit" class="btn btn-info rounded-0">Next</button>
+                    </div>
+               </form>
+          
+          =In registerstep2.blade.php 
+               <h5>Personal Info</h5>
+
+               <form class="mt-3" action="{{ route('register.storestep2') }}" method="POST">
+                    @csrf
+                    <div class="form-group mb-3">
+                         <input type="firstname" name="firstname" class="form-control @error('firstname') is-invalid @enderror" placeholder="First Name" autofocus value="{{ old('firstname') }}"/>
+                         @error('firstname')
+                         <span class="invalid-feedback">
+                         <strong>{{ $message }}</strong>
+                         </span>
+                         @enderror
+                    </div>
+
+                    <div class="form-group mb-3">
+                         <input type="lastname" name="lastname" class="form-control @error('lastname') is-invalid @enderror" placeholder="Last Name" autofocus value="{{ old('lastname') }}"/>
+                         @error('lastname')
+                         <span class="invalid-feedback">
+                         <strong>{{ $message }}</strong>
+                         </span>
+                         @enderror
+                    </div>
+
+                    <div class="form-group mb-3">
+                         <label for="gender_id">Gender <span class="text-danger">*</span></label>
+                         <select name="gender_id" id="gender_id" class="form-control  rounded-0">
+                         <option value="" selected disabled>Choose a gender</option>
+                         @foreach($genders as $gender)
+                              <option value="{{$gender['id']}}">{{$gender['name']}}</option>
+                         @endforeach     
+                         </select>
+                    </div>
+                    <div class="mb-3">
+                         <label for="age">Age <span class="text-danger">*</span></label>
+                         <input type="number" name="age" id="age" class="form-control rounded-0" placeholder="Enter Your Age" value="{{ old('age')}}"/>
+                    </div>
+                    
+               
+                    <div class="d-grid">
+                         <button type="submit" class="btn btn-info rounded-0">Next</button>
+                    </div>
+               </form>
+
+          =In registerstep3.blade.php 
+               <h5>Contact Info</h5>
+
+               <form class="mt-3" action="{{ route('register.storestep3') }}" method="POST">
+                    @csrf
+
+                    <div class="form-group mb-3">
+                         <label for="country_id">Country</label>
+                         <select name="country_id" id="country_id" class="form-control rounded-0 country_id">
+                         <option value="" selected disabled>Choose a country</option>
+                         @foreach($countries as $country)
+                              <option value="{{$country['id']}}">{{$country['name']}}</option>
+                         @endforeach     
+                         </select>
+                    </div>
+                    <div class="form-group mb-3">
+                         <label for="city_id">City</label>
+                         <select name="city_id" id="city_id" class="form-control rounded-0 city_id">
+                         <option value="" selected disabled>Choose a city</option>
+                         </select>
+                    </div>
+               
+                    <div class="d-grid">
+                         <button type="submit" class="btn btn-info rounded-0">Next</button>
+                    </div>
+               </form>
+
+          =In RegisteredUserController.php 
+
+               public function createstep1(){
+                    return view("auth.registerstep1");
+               }
+
+               public function storestep1(Request $request){
+                    $request->validate([
+                         "email"=>"required|string|email|max:100|unique:users",
+                         "password"=>"required|string|min:8|confirmed"
+                    ]);
+
+                    $request->session()->put('registerationdatas',$request->only('email','password'));
+
+                    return redirect()->route('register.step2');
+               }
+
+               public function createstep2(){
+                    $genders = Gender::all();
+                    return view("auth.registerstep2",compact("genders"));
+               }
+
+               public function storestep2(Request $request){
+                    $request->validate([
+                         "firstname"=>"required|string|max:100",
+                         "lastname"=>"nullable|string|max:100",
+                         "gender_id"=>"required|exists:genders,id",
+                         "age"=>"required|integer|min:13|max:35"
+                    ]);
+
+                    $regdatas = $request->session()->get("registerationdatas");
+                    if(!$regdatas){
+                         return redirect()->route('register.step1')->with("error","Registration Data is missing.");
+                    }
+                    
+                    $regdatas['lead'] = $request->only('firstname',"lastname",'gender_id','age');
+
+                    $request->session()->put('registerationdatas',$regdatas);
+
+                    return redirect()->route('register.step3');
+               }
+
+
+               public function createstep3(){
+                    $countries = Country::orderBy("name","asc")->where("status_id",3)->get();
+                    return view("auth.registerstep3",compact("countries"));
+               }
+
+               public function storestep3(Request $request){
+                    $request->validate([
+                         "country_id"=>"required|exists:countries,id",
+                         "city_id"=>"required|exists:cities,id",
+                    ]);
+
+
+
+                    $regdatas = $request->session()->get('registerationdatas');
+                    if(!$regdatas){
+                         return redirect()->route('register.step1')->with("error","Registration Data is missing.");
+                    }
+
+                    $regdatas['country_id'] = $request->input('country_id');
+                    $regdatas['city_id'] = $request->input('city_id');
+
+                    $request->session()->put('registerationdatas',$regdatas);
+
+
+                    $user = User::create([
+                         'name' => $regdatas["lead"]["firstname"]." ".$regdatas["lead"]["lastname"],
+                         'email' => $regdatas["email"],
+                         'password' => Hash::make($regdatas["password"]),
+                    ]);
+
+                    $user->lead()->create([
+                         "firstname" => $regdatas["lead"]["firstname"],
+                         'lastname' => $regdatas["lead"]["lastname"],
+                         'gender_id' => $regdatas["lead"]["gender_id"],
+                         'age' => $regdatas["lead"]["age"],
+                         'email' => $regdatas["email"],
+                         'country_id' => $regdatas["country_id"],
+                         'city_id' => $regdatas["city_id"],
+                    ]);
+
+                    // return redirect()->route('home');
+
+                    event(new Registered($user));
+                    Auth::login($user);
+                    return redirect(RouteServiceProvider::HOME);
+               }
+
+
+          =In User.php 
+               public function lead(){
+                    return $this->hasOne(Lead::class);
+               }
+               =Preventing Data Lost from previous steps (taking long time for a step) and 
+                    Passing forward steps
+          
+               In Laravel, every time a user makes a request (for example, opening a webpage or submitting a form), the request object (often called $request) is automatically created by Laravel. This object contains all the information about that specific request, like:
+               Form data (if the user submitted a form),
+               Session data (if the user is logged in, for example),
+               Cookies, headers, etc.
+
+
+               Key Differences:
+               Aspect	          $request->session()	                                                  session() (Global Helper)
+               Context	          Used within controller or middleware where $request is available	     Can be used anywhere (controller, view, service, etc.)
+               Usage	          Accesses session via the $request object	                         Directly accesses the session store
+               Request Dependency	Depends on the current HTTP request	                              Independent of the request object
+               Example Use Case	Controller methods that receive $request	                         Views, service classes, or anywhere without $request
+
+
+               *storestep1()
+                    registerationdatas [
+                         email : 
+                         password :  
+                    ]
+
+               *storestep2()
+                    registerationdatas [
+                         email : 
+                         password :  
+                         lead : [
+                              firstname:
+                              lastname:
+                              gender_id:
+                              age:
+                         ]
+                    ]
+               
+               
+               *storestep3()
+                    registerationdatas [
+                         email : 
+                         password :  
+                         lead : [
+                              firstname:
+                              lastname:
+                              gender_id:
+                              age:
+                         ]:
+                         country_id:
+                         city_id
+                    ]
+
+
+               =phpMyAdmin 
+                    `users`
+                         id	name	email	email_verified_at	password	is_online	last_active	package_id	subscription_expires_at	remember_token	created_at	updated_at	
+                         1	admin	admin@gmail.com	NULL	$2y$12$xffXPm7kidQvS4CgU8LThuAgkEb5otckKTMpVJtuDmr...	0	2024-09-22 14:08:51	5	2024-10-26 19:26:51	ryUMzhuZlynbbjbIPa68FIwZ5BfbQe0Q2dGdNLolSHN5FlUqL0...	2023-12-12 07:27:33	2024-09-22 14:08:51	
+                         20	aung aung	thoonlay779@gmail.com	NULL	$2y$12$xffXPm7kidQvS4CgU8LThuAgkEb5otckKTMpVJtuDmr...	0	2024-07-09 18:24:50	NULL	NULL	H7caW2HvWavEEyFx7N2ByMNM359gbocWHLMgGZeDDUi2l9c4eD...	2023-12-12 07:27:33	2024-07-09 18:24:50	
+                         30	su su	susu@gmail.com	NULL	$2y$12$xffXPm7kidQvS4CgU8LThuAgkEb5otckKTMpVJtuDmr...	0	2024-07-09 18:11:50	NULL	NULL	abVx9gp1RBDkKgbkQH1n4XerU3mteEJET0W89BMFTGR0iDXL8a...	2023-12-12 07:27:33	2024-07-09 18:11:51	
+                         40	yu yu	yuyu@gmail.com	NULL	$2y$12$xffXPm7kidQvS4CgU8LThuAgkEb5otckKTMpVJtuDmr...	0	NULL	NULL	NULL	RFD0a5oPp31kZ3y94jsyEmim5D9OTndr8P70rlO2IavVy7tNA2...	2023-12-12 07:27:33	2023-12-12 07:53:59	
+                         
+                         43	User One	user1@gmail.com	NULL	$2y$12$AdMKs6LuKArFEvV7Og5wAuF0rep2hoHFN.vH1Pe5/cF...	1	2024-09-29 15:41:57	NULL	NULL	NULL	2024-09-29 15:41:56	2024-09-29 15:41:57	
+                    
+                    `leads`
+                         id	leadnumber	firstname	lastname	gender_id	age	email	          country_id	city_id	user_id	converted	student_id	created_at	updated_at	
+                         2	LD00000002	User 	One	     1	     20	user1@gmail.com	154	          85	     43	     0	     NULL	          2024-09-29 15:41:57	2024-09-29 15:41:57	
+
+          =Restrict Access to forward steps 
+               php artisan make:middleware CheckRegistrationStepMid 
+
+               In Kernel.php 
+                    protected $middlewareAliases = [
+                         ....
+                         "validate.subscriptions" => \App\Http\Middleware\ValidateSubscriptionMid::class,
+                         "check.registration.step" => \App\Http\Middleware\CheckRegistrationStepMid::class,
+                         
+                    ];
+
+               =In web.php 
+                    Route::get("/register/step1",[RegisteredUserController::class,"createstep1"])->name("register.step1");
+                    Route::post("/register/step1",[RegisteredUserController::class,"storestep1"])->name("register.storestep1");
+
+                    Route::get("/register/step2",[RegisteredUserController::class,"createstep2"])->name("register.step2")->middleware("check.registration.step:step2");
+                    Route::post("/register/step2",[RegisteredUserController::class,"storestep2"])->name("register.storestep2");
+
+                    Route::get("/register/step3",[RegisteredUserController::class,"createstep3"])->name("register.step3")->middleware("check.registration.step:step3");
+                    Route::post("/register/step3",[RegisteredUserController::class,"storestep3"])->name("register.storestep3");
+
+
+               =In CheckRegistrationStepMid.php 
+                    public function handle(Request $request, Closure $next,$step): Response
+                    {
+                         $regdatas = $request->session()->get("registerationdatas");
+
+                         if($step === 'step2' && !$regdatas){
+                              return redirect()->route("register.step1")->with("error","You must complete step 1.");
+                         }
+
+                         if($step === 'step3' && (!$regdatas || !isset($regdatas['lead']))){
+                              return redirect()->route("register.step1")->with("error","You must complete step 1 and step 2.");
+                         }
+
+                         return $next($request);
+                    }
+
+          =>Email Verification 
+               =In User.php 
+
+                    use Illuminate\Contracts\Auth\MustVerifyEmail;
+                    use Illuminate\Database\Eloquent\Factories\HasFactory;
+                    use Illuminate\Foundation\Auth\User as Authenticatable;
+                    use Illuminate\Notifications\Notifiable;
+                    use Laravel\Sanctum\HasApiTokens;
+
+                    class User extends Authenticatable implements MustVerifyEmail
+                    {
+                    use HasApiTokens, HasFactory, Notifiable;        
+
+               =In web.php 
+                    Route::middleware('auth',"verified")->group(function () {
+
+
+               =Original auth > verify-email.blade.php 
+                    <x-guest-layout>
+                    <div class="mb-4 text-sm text-gray-600">
+                         {{ __('Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn\'t receive the email, we will gladly send you another.') }}
+                    </div>
+
+                    @if (session('status') == 'verification-link-sent')
+                         <div class="mb-4 font-medium text-sm text-green-600">
+                              {{ __('A new verification link has been sent to the email address you provided during registration.') }}
+                         </div>
+                    @endif
+
+                    <div class="mt-4 flex items-center justify-between">
+                         <form method="POST" action="{{ route('verification.send') }}">
+                              @csrf
+
+                              <div>
+                                   <x-primary-button>
+                                        {{ __('Resend Verification Email') }}
+                                   </x-primary-button>
+                              </div>
+                         </form>
+
+                         <form method="POST" action="{{ route('logout') }}">
+                              @csrf
+
+                              <button type="submit" class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                   {{ __('Log Out') }}
+                              </button>
+                         </form>
+                    </div>
+                    </x-guest-layout>
+               =In auth > verify-email.blade.php 
+                    @include("layouts.adminheader")
+                    <div id="app">
+                    <div class="d-flex vh-100 justify-content-center align-items-center">
+                         <div class="col-md-3 bg-white p-4">
+                              <h5>Email Verification</h5>
+
+                              <div class="row">
+                                   <div>
+                                        <p>Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn't receive the email, we will gladly send you another.</p>
+                                   </div>
+
+                                   @if (session('status') == 'verification-link-sent')
+                                        <small class="text-primary text-sm mb-4">
+                                        A new verification link has been sent to the email address you provided during registration.'
+                                        </small>
+                                   @endif
+
+                                   <form class="mt-3" action="{{ route('verification.send') }}" method="POST" >
+                                        @csrf
+
+                                        <div class="d-grid">
+                                        <button type="submit" class="btn btn-info rounded-0">Resend Verification Email</button>
+                                        </div>
+                                   </form>
+
+                                   <div class="text-center mt-2">
+                                        <small>Don't have an action ?</small>
+                                        <form action="{{ route('logout') }}" method="POST">
+                                        @csrf
+                                        <a href="{{ route('logout') }}" onclick="event.preventDefault(); this.closest('form').submit();" class="small">Sign Out</a>
+                                        </form>
+                                   </div>
+
+                              </div>
+                              
+
+                         </div>
+                    </div>
+                    </div>
+                    @include("layouts.adminfooter")
+
+               Before Email Verrification - Login > Dashboard
+               After Email Verification - Login > Verify Email Page #Resend Verification Email > Dashboard
+
+               #Resend Verification Email
+                    =Admin Acc (admin@gmail.com )
+                    
+                         thoonthoon469@gmail.com (System Mail)
+                         Address not found
+                         Your message wasn't delivered to admin@gmail.com because the address couldn't be found, or is unable to receive mail.
+
+                         =Email Template 
+                              Please click the button below to verify your email address.
+
+                              "Verify Email Address"
+
+                              If you did not create an account, no further action is required.
+
+                              Regards,
+                              DLT Student Management Project
+
+                              If you're having trouble clicking the "Verify Email Address" button, copy and paste the URL below into your web browser: http://127.0.0.1:8000/verify-email/1/3252d89d93bfb1327e2d3aae9187b565dac6d085?expires=1727715874&signature=eb59e86cf177042b9459b3b86f2eddc08b45391400299efdbc33ff86894d8cd4
+
+
+                              *a href="http://127.0.0.1:8000/verify-email/1/3252d89d93bfb1327e2d3aae9187b565dac6d085?expires=1727715874&amp;signature=eb59e86cf177042b9459b3b86f2eddc08b45391400299efdbc33ff86894d8cd4" class="m_6001249244745466782button" rel="noopener" style="box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';border-radius:4px;color:#fff;display:inline-block;overflow:hidden;text-decoration:none;background-color:#2d3748;border-bottom:8px solid #2d3748;border-left:18px solid #2d3748;border-right:18px solid #2d3748;border-top:8px solid #2d3748" target="_blank" data-saferedirecturl="https://www.google.com/url?q=http://127.0.0.1:8000/verify-email/1/3252d89d93bfb1327e2d3aae9187b565dac6d085?expires%3D1727715874%26signature%3Deb59e86cf177042b9459b3b86f2eddc08b45391400299efdbc33ff86894d8cd4&amp;source=gmail&amp;ust=1727798685899000&amp;usg=AOvVaw2COCN9j5UsILhbKn3ULtQb">Verify Email Address</a>
+
+                              *It is a localhost link button(not domain name link), it can be verified only from local machine.
+
+                    =Register a new lead (Thoon Lay Acc) 
+                         =thoonlay779@gmail
+                         =Register (step3) > Verification Email > Home Page 
+
+
+                =In phpmyadmin 
+                    "users"
+                    id	name	     email	               email_verified_at	password	is_online	last_active	package_id	subscription_expires_at	remember_token	created_at	updated_at	
+                    47	Thoon Lay	thoonlay779@gmail.com	2024-10-01 21:59:19	$2y$12$SA46rW0yPSArj3OaPBgqA.585WGD9MsiLdmc7iHnXNd...	1	2024-10-01 21:59:19	NULL	NULL	NULL	2024-10-01 21:59:02	2024-10-01 21:59:19	
+     
+     =>Login / Register Template 
+          views > layouts > auth > 
+               =In authheader.blade.php 
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                         <!-- Application Name -->
+                         <title>{{ config('app.name') }}</title>
+
+                         <meta charseet="utf-8" />
+                         <meta name="csrf-token" content="{{ csrf_token() }}"/>
+
+                         <!-- fav icon -->
+                         <link href="{{ asset('assets/img/fav/favicon.png') }}" rel="icon" type="image/png" sizes="16x16"/>
+                         <!-- bootstrap css1 js1 -->
+                         <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous"> -->
+                         @vite(["resources/css/app.css","resources/js/app.js","public/assets/dist/css/style.css"])
+                         
+                         <!-- fontawesome css1 -->
+                         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+                         <!-- jqueryui css1 js1 -->
+                         <link href="{{asset('./assets/libs/jquery-ui-1.13.2.custom/jquery-ui.min.css')}}" rel="stylesheet" type="text/css">
+                         
+                         <!-- toastr css1 js1 -->
+                         <link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet" />
+                         
+                         <!-- custom css css1 -->
+                         <!-- <link href="{{ asset('assets/dist/css/style.css') }}" rel="stylesheet" type="text/css"/> -->
+                         
+                         <!-- Extra CSS -->
+                         @yield('css')
+
+                         {{-- pusher js1  --}}
+                         <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+
+                    </head>
+                    <body>
+               =In authfooter.blade.php 
+                    
+                         <!-- bootstrap css1 js1 -->
+                         <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script> -->
+                         <!-- jquery js1 -->
+                         <!-- <script src="https://code.jquery.com/jquery-3.6.3.min.js" type="text/javascript"></script> -->
+                         <script src="{{asset('./assets/libs/jquery-3.6.0/jquery-3.6.0.min.js')}}" type="text/javascript"></script>
+                         
+                         <!-- toastr css1 js1 -->
+                         <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" type="text/javascript"></script>
+                         <script>
+                                   toastr.options = {
+                                        "progressBar":true,
+                                        "closeButton":true
+                                   };
+                         </script> 
+
+                              @if(Session::has("success"))
+                                   <script>toastr.success('{{ session()->get("success") }}', 'Successful')</script>
+                              @endif
+
+                              @if(session()->has("info"))
+                                   <script>toastr.info('{{ session()->get("info") }}', 'Information')</script>
+                              @endif
+
+                              @if(session()->has("error"))
+                                   <script>toastr.error('{{ session()->get("error") }}', 'Inconceivable')</script>
+                              @endif
+
+                              @if($errors)
+                                   @foreach($errors->all() as $error)
+                                        <script>toastr.error('{{$error}}', 'Warning!',{timeOut:3000})</script>
+                                   @endforeach
+                              @endif
+                         
+
+                         
+                         <!-- custom js js1 -->
+                         <!-- <script src="{{ asset('assets/dist/js/app.js') }}" type="text/javascript"></script> -->
+                         @vite(["public/assets/dist/js/app.js"]) 
+
+                         <!-- Extra js -->
+                         @yield('scripts')
+
+                         <script>
+
+                         
+                              // Start Dynamic Select Option 
+                              $(document).on("change",".country_id",function(){
+                                   const getcountryid = $(this).val();
+                                   // console.log(getcountryid);
+
+                                   let opforcity = "";
+                                   $.ajax({
+                                        url: `/api/filter/cities/${getcountryid}`,
+                                        type: "GET",
+                                        dataType:"json",
+                                        success:function(response){
+                                             $(".city_id").empty();
+                                             opforcity += "<option selected disabled>Choose a city abcd</option>";
+                                             
+                                             console.log(response);
+                                             for(let x=0 ; x<response.data.length; x++){
+                                                  opforcity += `<option value="${response.data[x].id}">${response.data[x].name}</option>`;
+                                             }
+
+                                             $(".city_id").append(opforcity);
+                                        },
+                                        error:function(response){
+                                             console.log("Error:( ",response);
+                                        }
+                                   });
+                              });
+                              // End Dynamic Select Option
+
+                              // Start Multi Step Form Loader
+                              document.getElementById('stepform').addEventListener("submit",function(){
+                                   document.getElementById("loader").classList.remove('d-none');
+
+                                   document.getElementById('submitbtn').disabled = true;
+                                   document.getElementById('submitbtn').innerText = "Please wait....";
+                              });
+                              // End Multi Step Form Loader
+                         </script>
+                    </body>
+                    </html>
+
+
+               =In authindex.blade.php 
+                    @include('layouts.auth.authheader')
+                    <div id="app">
+                    <div class="d-flex vh-100 justify-content-center align-items-center">
+                         <div class="bg-white p-4">
+                                   <h5>@yield('caption')</h5>
+
+                                   @yield('content')
+
+                                   <!-- bootstrap loader -->
+                                   <div class="d-flex justify-content-center mt-3">
+                                        <div id="loader" class="spinner-border spinner-border-sm d-none" role="status"></div>
+                                   </div>
+
+                              <!-- social login -->
+                              <div class="row">
+                                   <small class="text-center text-muted mt-3">Sign up with</small>
+                                   <div class="col-12 mt-2 text-center">
+                                        <a href="javascript:void(0);" class="btn" title="Login with Facebook"><i class="fab fa-facebook-f"></i></a>
+                                        <a href="javascript:void(0);" class="btn" title="Login with Google"><i class="fab fa-google"></i></a>
+                                        <a href="javascript:void(0);" class="btn" title="Login with Twitter"><i class="fab fa-twitter"></i></a>
+                                        <a href="javascript:void(0);" class="btn" title="Login with Github"><i class="fab fa-github"></i></a>
+                                   </div>
+                              </div>
+
+                              <!-- register -->
+                              <div class="row">
+                                   <div class="col-12 mt-2 text-center">
+                                        <small>Already have an account?  <a href="{{ route('login') }}" class="text-primary ms-1">Sign In</a></small>
+                                   </div>
+                              </div>
+
+                              <!-- data policy -->
+                              <div class="row">
+                                   <div class="col-12 mt-2 text-center text-muted">
+                                        <small>By clicking Sign Up, you agree to our  <a href="javascript:void(0);" class="text-primary fw-bold">Terms</a>, <a href="javascript:void(0);" class="text-primary fw-bold">Data Policy</a> and <a href="javascript:void(0);" class="text-primary fw-bold">Cookie Policy</a>. You may receive SMS notification from us.</small>
+                                   </div>
+                              </div>
+                         </div>
+                    </div>
+                    </div>
+                    @include('layouts.auth.authfooter')
+
+               *Replacing Dynamic form content  
+               =In registerstep1.blade.php 
+                    @extends("layouts.auth.authindex")
+
+                    @section('caption','Access')
+                    @section('content')
+                    <form id="stepform" class="mt-3" action="{{ route('register.storestep1') }}" method="POST">
+                                   @csrf
+
+                                   <div class="form-group mb-3">
+                                        <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Email" autofocus value="{{ old('email') }}"/>
+                                        @error('email')
+                                        <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                        <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" value="{{ old('password') }}"/>
+                                        @error('password')
+                                        <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                        <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="Confirm Password" value="{{ old('password-confirmation') }}"/>
+                                        @error('password_confirmation')
+                                        <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                   </div>
+                                   
+                              
+                                   <div class="d-grid">
+                                        <button type="submit" id="submitbtn" class="btn btn-info rounded-0">Next</button>
+                                   </div>
+                              </form>
+                    @endsection
+
+               =In registerstep2.blade.php 
+
+                    @extends("layouts.auth.authindex")
+
+                    @section('caption','Personal Info')
+                    @section('content')
+                    <form id="stepform" class="mt-3" action="{{ route('register.storestep2') }}" method="POST">
+                                   @csrf
+                                   <div class="form-group mb-3">
+                                        <input type="firstname" name="firstname" class="form-control @error('firstname') is-invalid @enderror" placeholder="First Name" autofocus value="{{ old('firstname') }}"/>
+                                        @error('firstname')
+                                        <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                        <input type="lastname" name="lastname" class="form-control @error('lastname') is-invalid @enderror" placeholder="Last Name" autofocus value="{{ old('lastname') }}"/>
+                                        @error('lastname')
+                                        <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                        <label for="gender_id">Gender <span class="text-danger">*</span></label>
+                                        <select name="gender_id" id="gender_id" class="form-control  rounded-0">
+                                        <option value="" selected disabled>Choose a gender</option>
+                                        @foreach($genders as $gender)
+                                             <option value="{{$gender['id']}}">{{$gender['name']}}</option>
+                                        @endforeach     
+                                        </select>
+                                   </div>
+                                   <div class="mb-3">
+                                        <label for="age">Age <span class="text-danger">*</span></label>
+                                        <input type="number" name="age" id="age" class="form-control rounded-0" placeholder="Enter Your Age" value="{{ old('age')}}"/>
+                                   </div>
+                                   
+                              
+                                   <div class="d-grid">
+                                        <button type="submit" id="submitbtn" class="btn btn-info rounded-0">Next</button>
+                                   </div>
+                              </form>
+                    @endsection
+
+               =In register3.blade.php 
+                    @extends("layouts.auth.authindex")
+
+                    @section('caption','Contact Info')
+                    @section('content')
+                    <form id="stepform" class="mt-3" action="{{ route('register.storestep3') }}" method="POST">
+                                   @csrf
+
+                                   <div class="form-group mb-3">
+                                        <label for="country_id">Country</label>
+                                        <select name="country_id" id="country_id" class="form-control rounded-0 country_id">
+                                        <option value="" selected disabled>Choose a country</option>
+                                        @foreach($countries as $country)
+                                             <option value="{{$country['id']}}">{{$country['name']}}</option>
+                                        @endforeach     
+                                        </select>
+                                   </div>
+                                   <div class="form-group mb-3">
+                                        <label for="city_id">City</label>
+                                        <select name="city_id" id="city_id" class="form-control rounded-0 city_id">
+                                        <option value="" selected disabled>Choose a city</option>
+                                        </select>
+                                   </div>
+                              
+                                   <div class="d-grid">
+                                        <button type="submit" id="submitbtn" class="btn btn-info rounded-0">Next</button>
+                                   </div>
+                              </form>
+                    @endsection
+
+
+               =Default Email Template 
+                    DLT Student Management Project
+                    Hello!
+                    Please click the button below to verify your email address.
+
+                    Verify Email Address
+                    If you did not create an account, no further action is required.
+
+                    Regards,
+                    DLT Student Management Project
+
+                    If you're having trouble clicking the "Verify Email Address" button, copy and paste the URL below into your web browser: 
+                    http://127.0.0.1:8000/verify-email/49/ac793270f9ba7b9f946748702e73229d0c64fe09?expires=1728197869&signature=deb29a2505c2b0341fdf7d188c38397349a01ad177a21577cf9668a547b61141
+
+                    *Above link for this email owner, and anyone can't verify with this link.
+               
+               =Custom email template 
+                    php artisan vendor:publish --tag=laravel-notifications
+
+               resources\views\vendor\notifications
+               =Original email.blade.php 
+                    <x-mail::message>
+                    {{-- Greeting --}}
+                    @if (! empty($greeting))
+                    # {{ $greeting }}
+                    @else
+                    @if ($level === 'error')
+                    # @lang('Whoops!')
+                    @else
+                    # @lang('Hello!')
+                    @endif
+                    @endif
+
+                    {{-- Intro Lines --}}
+                    @foreach ($introLines as $line)
+                    {{ $line }}
+
+                    @endforeach
+
+                    {{-- Action Button --}}
+                    @isset($actionText)
+                    <?php
+                    $color = match ($level) {
+                         'success', 'error' => $level,
+                         default => 'primary',
+                    };
+                    ?>
+                    <x-mail::button :url="$actionUrl" :color="$color">
+                    {{ $actionText }}
+                    </x-mail::button>
+                    @endisset
+
+                    {{-- Outro Lines --}}
+                    @foreach ($outroLines as $line)
+                    {{ $line }}
+
+                    @endforeach
+
+                    {{-- Salutation --}}
+                    @if (! empty($salutation))
+                    {{ $salutation }}
+                    @else
+                    @lang('Regards'),<br>
+                    {{ config('app.name') }}
+                    @endif
+
+                    {{-- Subcopy --}}
+                    @isset($actionText)
+                    <x-slot:subcopy>
+                    @lang(
+                    "If you're having trouble clicking the \":actionText\" button, copy and paste the URL below\n".
+                    'into your web browser:',
+                    [
+                         'actionText' => $actionText,
+                    ]
+                    ) <span class="break-all">[{{ $displayableActionUrl }}]({{ $actionUrl }})</span>
+                    </x-slot:subcopy>
+                    @endisset
+                    </x-mail::message>
+
+     =>Auto Logout
+          =In .env 
+               SESSION_DRIVER=file
+               SESSION_LIFETIME=120 #This session willexpire after 120 minutes of inactivity
+
+          =In config > session.php 
+               'driver' => env('SESSION_DRIVER', 'file'),
+               'lifetime' => env('SESSION_LIFETIME', 120),
+               'expire_on_close' => false, // keep the session alive even if the user closed the browser
+
+               **
+               'expire_on_close' => false, means that the session will not expire when the user closes their browser. The session will remain active and available for future visits until it expires based on other session settings (like the 'lifetime' setting).
+               'expire_on_close' => true, would mean the session will expire when the user closes their browser, even if the session's lifetime hasn’t reached its limit. This is useful for cases where you want to end the session for security reasons when the browser is closed.
+
+          php artisan make:middleware AutoLogoutMid
+
+          =In AutoLogoutMid.php 
+               public function handle(Request $request, Closure $next): Response
+               {
+                    if(Auth::check()){
+                         $dueinactivetime = config('session.lifetime') * 60; // Convert minute to seconds
+                         $lastactivity = Session::get('lastactivity',now());
+
+                         if(now()->diffInSeconds($lastactivity) > $dueinactivetime){
+                              Auth::logout();
+                              Session::flush();
+
+                              return redirect()->route('login')->with("message","You have been logged out.");
+                         }
+
+                         // Update the last activity time 
+                         Session::put('lastactivity',now());
+                    }
+
+                    return $next($request);
+               }
+
+          =In Kernel.php 
+               protected $middlewareAliases = [
+                    ....
+                    'autologout'=>\App\Http\Middleware\AutoLogoutMid::class,
+               ];
+
+          =In web.php 
+               Route::middleware('auth',"autologout","verified")->group(function () {
+
+          *Session will automatically logout if user is inactive for the limited time.
+
+     =>Forgot Password 
+          =Original forgot-password.blade.php
+               <x-guest-layout>
+               <div class="mb-4 text-sm text-gray-600">
+                    {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
+               </div>
+
+               <!-- Session Status -->
+               <x-auth-session-status class="mb-4" :status="session('status')" />
+
+               <form method="POST" action="{{ route('password.email') }}">
+                    @csrf
+
+                    <!-- Email Address -->
+                    <div>
+                         <x-input-label for="email" :value="__('Email')" />
+                         <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
+                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                    </div>
+
+                    <div class="flex items-center justify-end mt-4">
+                         <x-primary-button>
+                              {{ __('Email Password Reset Link') }}
+                         </x-primary-button>
+                    </div>
+               </form>
+               </x-guest-layout>
+
+          =In forgot-password.blade.php 
+               @include("layouts.adminheader")
+               <div id="app">
+               <div class="d-flex vh-100 justify-content-center align-items-center">
+                    <div class="col-3 bg-white p-4">
+                         <h6>Forgot Password !</h6>
+
+                         <div class="row">
+                              <div>
+                                   <p>Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.</p>
+                              </div>
+
+                              @if (session('status'))
+                                   <small class="text-primary text-sm mb-4">
+                                   A new verification link has been sent to the email address you provided during registration.'
+                                   </small>
+                              @endif
+
+                              <form class="mt-3" action="{{ route('password.email') }}" method="POST">
+                                   @csrf
+
+                              
+                                   <div class="form-group mb-3">
+                                   <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Enter your email" value="{{ old('email') }}"/>
+                                   @error('email')
+                                   <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                                   </div>
+                              
+                                   <div class="d-grid">
+                                   <button type="submit" class="btn btn-info rounded-0">Email Password Reset Link</button>
+                                   </div>
+                              </form>
+
+                         </div>
+                    
+                    </div>
+               </div>
+               </div>
+               @include("layouts.adminfooter")
+          
+          =Original reset-password.blade.php 
+               <x-guest-layout>
+               <form method="POST" action="{{ route('password.store') }}">
+                    @csrf
+
+                    <!-- Password Reset Token -->
+                    <input type="hidden" name="token" value="{{ $request->route('token') }}">
+
+                    <!-- Email Address -->
+                    <div>
+                         <x-input-label for="email" :value="__('Email')" />
+                         <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email', $request->email)" required autofocus autocomplete="username" />
+                         <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                    </div>
+
+                    <!-- Password -->
+                    <div class="mt-4">
+                         <x-input-label for="password" :value="__('Password')" />
+                         <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+                         <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="mt-4">
+                         <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+
+                         <x-text-input id="password_confirmation" class="block mt-1 w-full"
+                                             type="password"
+                                             name="password_confirmation" required autocomplete="new-password" />
+
+                         <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                    </div>
+
+                    <div class="flex items-center justify-end mt-4">
+                         <x-primary-button>
+                              {{ __('Reset Password') }}
+                         </x-primary-button>
+                    </div>
+               </form>
+               </x-guest-layout>
+
+          =In reset-password.blade.php 
+               @include("layouts.adminheader")
+               <div id="app">
+               <div class="d-flex vh-100 justify-content-center align-items-center">
+                    <div class="col-3 bg-white p-4">
+                         <h6>New Password !</h6>
+
+                         <div class="row">
+
+                              <form class="mt-3" action="{{ route('password.store') }}" method="POST">
+                                   @csrf
+
+                                   <!-- Password Reset Token -->
+                                   <input type="hidden" name="token" value="{{ $request->route('token') }}">
+
+                              
+                                   <div class="form-group mb-3">
+                                   <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" placeholder="Enter your email" value="{{ old('email') }}"/>
+                                   @error('email')
+                                   <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                   <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="Password" value="{{ old('password') }}"/>
+                                   @error('password')
+                                   <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                                   </div>
+
+                                   <div class="form-group mb-3">
+                                   <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="Confirm Password" value="{{ old('password_confirmation') }}"/>
+                                   @error('password_confirmation')
+                                   <span class="invalid-feedback">
+                                        <strong>{{ $message }}</strong>
+                                   </span>
+                                   @enderror
+                                   </div>
+                              
+                                   <div class="d-grid">
+                                   <button type="submit" class="btn btn-info rounded-0">Reset Password</button>
+                                   </div>
+                              </form>
+
+                         </div>
+                    
+                    </div>
+               </div>
+               </div>
+               @include("layouts.adminfooter")
+
+               *
+                    <!-- Password Reset Token -->
+                    <input type="hidden" name="token" value="{{ $request->route('token') }}">
+
+               -It is for server to investigate latest given token number and the current token number inside form.
+          
+               =Email someone@gmail.com (We can't find a user with that email address.)
+               =Password
+               =Confirm Password
+
+          =Reset Password Notification
+               DLT Student Management Project
+               Hello!
+               You are receiving this email because we received a password reset request for your account.
+
+               Reset Password
+               This password reset link will expire in 60 minutes.
+
+               If you did not request a password reset, no further action is required.
+
+               Regards,
+               DLT Student Management Project
+
+               If you're having trouble clicking the "Reset Password" button, copy and paste the URL below into your web browser: http://127.0.0.1:8000/reset-password/7fad1105120ba6a3dd92c354129a0805e792d20f426f70d46ee7620b69285aaf?email=admin%40gmail.com
+
+     =>Profile 
+          =In web.php 
+               Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+               Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+               Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+          app > Http > Controller >
+          =Original ProfileController.php 
+               <?php
+
+               namespace App\Http\Controllers;
+
+               use App\Http\Requests\ProfileUpdateRequest;
+               use Illuminate\Http\RedirectResponse;
+               use Illuminate\Http\Request;
+               use Illuminate\Support\Facades\Auth;
+               use Illuminate\Support\Facades\Redirect;
+               use Illuminate\View\View;
+
+               class ProfileController extends Controller
+               {
+               /**
+                    * Display the user's profile form.
+                    */
+               public function edit(Request $request): View
+               {
+                    return view('profile.edit', [
+                         'user' => $request->user(),
+                    ]);
+               }
+
+               /**
+                    * Update the user's profile information.
+                    */
+               public function update(ProfileUpdateRequest $request): RedirectResponse
+               {
+                    $request->user()->fill($request->validated());
+
+                    if ($request->user()->isDirty('email')) {
+                         $request->user()->email_verified_at = null;
+                    }
+
+                    $request->user()->save();
+
+                    return Redirect::route('profile.edit')->with('status', 'profile-updated');
+               }
+
+               /**
+                    * Delete the user's account.
+                    */
+               public function destroy(Request $request): RedirectResponse
+               {
+                    $request->validateWithBag('userDeletion', [
+                         'password' => ['required', 'current_password'],
+                    ]);
+
+                    $user = $request->user();
+
+                    Auth::logout();
+
+                    $user->delete();
+
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return Redirect::to('/');
+               }
+               }
+
+          
+          = resuources > view > profile > edit.blade.php
+               <x-app-layout>
+               <x-slot name="header">
+                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                         {{ __('Profile') }}
+                    </h2>
+               </x-slot>
+
+               <div class="py-12">
+                    <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+                         <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                              <div class="max-w-xl">
+                                   @include('profile.partials.update-profile-information-form')
+                              </div>
+                         </div>
+
+                         <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                              <div class="max-w-xl">
+                                   @include('profile.partials.update-password-form')
+                              </div>
+                         </div>
+
+                         <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
+                              <div class="max-w-xl">
+                                   @include('profile.partials.delete-user-form')
+                              </div>
+                         </div>
+                    </div>
+               </div>
+               </x-app-layout> -->
+
+          =In adminnavbar.blade.php 
+               <div class="dropdown-menu">
+                    <a href="{{ route('profile.edit') }}" class="dropdown-item"><i class="fas fa-user fa-sm text-muted me-2"></i>Profile</a>
+                    <a href="jascript:void(0);" class="dropdown-item"><i class="fas fa-cogs fa-sm text-muted me-2"></i>Settings</a>
+                    <a href="jascript:void(0);" class="dropdown-item"><i class="fas fa-list fa-sm text-muted me-2"></i>Activity Log</a>
+                    <div class="dropdown-divider"></div>
+
+          =>Password Update
+               =view > profile > partials > 
+               =Original update-password-form.blade.php
+                    <section>
+                    <header>
+                         <h2 class="text-lg font-medium text-gray-900">
+                              {{ __('Update Password') }}
+                         </h2>
+
+                         <p class="mt-1 text-sm text-gray-600">
+                              {{ __('Ensure your account is using a long, random password to stay secure.') }}
+                         </p>
+                    </header>
+
+                    <form method="post" action="{{ route('password.update') }}" class="mt-6 space-y-6">
+                         @csrf
+                         @method('put')
+
+                         <div>
+                              <x-input-label for="update_password_current_password" :value="__('Current Password')" />
+                              <x-text-input id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
+                              <x-input-error :messages="$errors->updatePassword->get('current_password')" class="mt-2" />
+                         </div>
+
+                         <div>
+                              <x-input-label for="update_password_password" :value="__('New Password')" />
+                              <x-text-input id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+                              <x-input-error :messages="$errors->updatePassword->get('password')" class="mt-2" />
+                         </div>
+
+                         <div>
+                              <x-input-label for="update_password_password_confirmation" :value="__('Confirm Password')" />
+                              <x-text-input id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+                              <x-input-error :messages="$errors->updatePassword->get('password_confirmation')" class="mt-2" />
+                         </div>
+
+                         <div class="flex items-center gap-4">
+                              <x-primary-button>{{ __('Save') }}</x-primary-button>
+
+                              @if (session('status') === 'password-updated')
+                                   <p
+                                        x-data="{ show: true }"
+                                        x-show="show"
+                                        x-transition
+                                        x-init="setTimeout(() => show = false, 2000)"
+                                        class="text-sm text-gray-600"
+                                   >{{ __('Saved.') }}</p>
+                              @endif
+                         </div>
+                    </form>
+                    </section>
+               =Original PasswordController.php 
+                    class PasswordController extends Controller
+                    {
+                    /**
+                         * Update the user's password.
+                         */
+                    public function update(Request $request): RedirectResponse
+                    {
+                         $validated = $request->validateWithBag('updatePassword', [
+                              'current_password' => ['required', 'current_password'],
+                              'password' => ['required', Password::defaults(), 'confirmed'],
+                         ]);
+
+                         $request->user()->update([
+                              'password' => Hash::make($validated['password']),
+                         ]);
+
+                         return back()->with('status', 'password-updated');
+                    }
+                    }
+
+               =view > profile > 
+                    =In edit.blade.php
+                         <div id="signintab" class="tab-pane">
+                              <h6>Sign-In Password</h6>
+                              <div class="col-md-4 mx-auto">
+                                   <form class="mt-3" action="{{ route('password.update') }}" method="POST">
+                                        @csrf
+                                        @method('PUT')
+                                        <div class="form-group mb-3">
+                                             <input type="password" id="current_password" name="current_password" class="form-control @error('current_password') is-invalid @enderror" placeholder="Old Password" value="{{ old('current_password') }}"/>
+                                             @error('current_password')
+                                             <span class="invalid-feedback">
+                                                  <strong>{{ $message }}</strong>
+                                             </span>
+                                             @enderror
+                                        </div>
+                                        
+                                        <div class="form-group mb-3">
+                                             <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" placeholder="New Password" value="{{ old('password') }}"/>
+                                             @error('password')
+                                             <span class="invalid-feedback">
+                                                  <strong>{{ $message }}</strong>
+                                             </span>
+                                             @enderror
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                             <input type="password" name="password_confirmation" class="form-control @error('password_confirmation') is-invalid @enderror" placeholder="Confirm Password" value="{{ old('password_confirmation') }}"/>
+                                             @error('password_confirmation')
+                                             <span class="invalid-feedback">
+                                                  <strong>{{ $message }}</strong>
+                                             </span>
+                                             @enderror
+                                        </div>
+                                   
+                                        <div class="float-end mb-3">
+                                             <button type="submit" class="btn btn-info btn-sm rounded-0">Save Change</button>
+                                        </div>
+                                   </form>
+                              </div>
+                              
+
+                         </div>
+
+
+                         Illuminate\Support\MessageBag {#1591 ▼ // resources\views/profile/edit.blade.php
+                         #messages: array:2 [▼
+                         "current_password" => array:1 [▶]
+                         "password" => array:1 [▶]
+                         ]
+                         #format: ":message"
+                         }
+
+          =>User Lead Student 
+               =In phpmyadmin
+               `users`
+                    id	name	     email	               email_verified_at	password	is_online	last_active	package_id	subscription_expires_at	remember_token	created_at	updated_at	
+
+                    47	Thoon Lay	thoonlay779@gmail.com	2024-10-01 21:59:19	$2y$12$SA46rW0yPSArj3OaPBgqA.585WGD9MsiLdmc7iHnXNd...	0	2024-10-13 16:22:01	NULL	NULL	NULL	2024-10-01 21:59:02	2024-10-13 16:22:01	
+                    48	User Four	user4@gmail.com	     2024-10-01 22:15:03	$2y$12$WoiKI.puAZT65wt3n91zfeTHC9Ues/qazdtzyYh8zIE...	1	2024-10-13 17:11:03	NULL	NULL	NULL	2024-10-01 22:14:35	2024-10-13 17:11:03	
+               
+               `leads`
+                    id	leadnumber	firstname	lastname	gender_id	age	email	country_id	city_id	user_id	converted	student_id	created_at	updated_at	
+                    6	LD00000005	Thoon	Lay	     2	     24	thoonlay779@gmail.com	154	84	47	     0	     NULL	          2024-10-01 21:59:03	2024-10-01 21:59:03	
+                    7	LD00000007	User	     Four	     2	     30	user4@gmail.com	224	83	     48	     0	     NULL	          2024-10-01 22:14:35	2024-10-13 16:27:51	
+
+               =User Four Acc 
+                    =Update Lead Information before converted 
+                         (Linking User id - Lead user_id ) 
+                         -cuz he/she is a lead user
+
+               =Accessing Student Information 
+                    =Linking User email - Student email 
+                         -cuz user_id refer to student created user
+                    =It can cause error in case of user is not converted to student
+                         -It must be under a condition whic must be converted to student can edit student info 
+                         -Best solution is to use React route.
+
+                    =In User.php 
+                         public function student(){
+                              return $this->hasOne(Student::class,'email','email');
+                         }
 
 
 
