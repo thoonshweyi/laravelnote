@@ -29335,6 +29335,31 @@ Policy for Attendance inspire Leave
                          Does Not Save to Database:
 
                          Using fill() only updates the attributes in memory. It does not save the changes to the database. You must call $post->save() to persist the changes.
+     
+     =>Post Image one/stop for show and chosse
+
+          <div class="col-md-12 mb-3">
+
+               {{-- <div class="row">
+                    <div class="col-md-6 text-sm-center">
+                         <img src="{{asset($post->image)}}" width="200" alt="{{$post->title}}"/>
+                    </div>
+                    <div class="col-md-6">
+                         <label for="image" class="gallery"><span>Choose Images</span></label>
+                         <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ $post->image }}" hidden/>
+                    </div>
+               </div>
+
+               --}}
+               <label for="image" class="gallery">
+               @if($post->image)
+                    <img src="{{ asset($post->image) }}" alt="" class="img-thumbnail" width="100" height="100"/>
+               @else
+                    <span>Choose Images</span>
+               @endif
+               </label>
+               <input type="file" name="image" id="image" class="form-control form-control-sm rounded-0" value="{{ $post->image }}" hidden/>
+          </div>
 
      =>Leave Polish 
           =In LeavesController.php 
@@ -29600,3 +29625,332 @@ Policy for Attendance inspire Leave
                     </div>
                </div>
 
+          =>One stop choose show Multi Images
+               <div class="col-md-12 mb-3">
+
+                    <label for="images" class="gallery">
+                         @if(!empty($leavefiles) && count($leavefiles) > 0)
+                              @foreach($leavefiles as $leavefile)
+                                   <img src="{{ asset($leavefile->image) }}" alt="{{ $leavefile->id }}" class="img-thumbnail" width="100" height="100"/>
+                              @endforeach
+                         @else
+                              <span>Choose Images</span>
+                         @endif
+                    </label>
+
+                    <!-- input for upload new images -->
+                    <input type="file" name="images[]" id="images" class="form-control form-control-sm rounded-0" value="{{ old('images') }}" multiple hidden/>
+               </div>
+
+          =In LeavesController.php 
+               
+               public function store(LeaveRequest $request)
+               {
+                    ....
+                    // Notify to single tagged user
+                    // $users = User::all();
+                    // $tagperson = $leave->tagperson()->get();
+                    // dd($tagperson);
+                    // $studentid = $leave->student($user_id);
+                    // Notification::send($tagperson,new LeaveNotify($leave->id,$leave->title,$studentid));
+                    
+                    
+                    // =>Notify to multi tagged users
+                    $tags = $request['tag'];
+                    $tagpersons = User::whereIn('id',$tags)->get(); // fetch all users at once
+                    $studentid = $leave->student($user_id);
+                    Notification::send($tagpersons,new LeaveNotify($leave->id,$leave->title,$studentid));
+
+
+
+                    return redirect(route("leaves.index"));
+               }
+
+               public function update(LeaveRequest $request, string $id)
+               {
+                    ....
+                    $leave->save();
+
+                    if($request->hasFile('images')){
+
+                         // Remove Old Image
+                         $leavefiles = LeaveFile::where('leave_id',$leave->id)->get();
+                         foreach($leavefiles as $leavefile){
+                              $path = $leavefile->image;
+
+                              if(File::exists($path)){
+                                   File::delete($path);
+                              }
+                         }
+
+                         // Remove Old Image Path
+                         LeaveFile::where('leave_id',$leave->id)->delete();
+
+                         // Multi Images Upload 
+                         foreach($request->file("images") as $image){
+                              $leavefile = new LeaveFile();
+                              $leavefile->leave_id = $leave->id;
+
+                              $file = $image;
+                              $fname = $file->getClientOriginalName();
+                              $imagenewname = uniqid($user_id).$leave['id'].$fname;
+                              $file->move(public_path('assets/img/leaves/'),$imagenewname);
+
+
+                              $filepath = 'assets/img/leaves/'.$imagenewname; 
+                              $leavefile->image = $filepath;
+
+                              $leavefile->save();
+                         }
+                    }
+
+                    
+
+                    session()->flash("success","Update Successfully");
+
+                    return redirect(route("leaves.index"));
+               }
+
+               public function destroy(string $id)
+               {
+                    $leave = Leave::findOrFail($id);
+                         $this->authorize('delete',$leave);
+
+                    
+                    // Remove Old Image
+                    $leavefiles = LeaveFile::where('leave_id',$id)->get();
+                    foreach($leavefiles as $leavefile){
+                         $path = $leavefile->image;
+                         if(File::exists($path)){
+                              File::delete($path);
+                         }
+                    }
+                    // Delete associate records from database
+                    LeaveFile::where('leave_id',$leave->id)->delete();
+
+                    $leave->delete();
+                    return redirect()->back();
+               }
+
+          => leaves > show.blade.php 
+               <div class="tab-content">
+
+                    <div id="content" class="tab-pane">
+                         <p>{!! $leave->content !!}</p>
+
+                         @if(!empty($leavefiles) && count($leavefiles) > 0)
+                              @foreach($leavefiles as $leavefile)
+                                   <a href="{{ asset($leavefile->image) }}" data-lightbox="image" data-title="My caption">
+                                        <img src="{{ asset($leavefile->image) }}" alt="{{ $leavefile->id }}" class="img-thumbnail" width="100" height="100"/>
+                                   </a>
+                              
+                              @endforeach
+                         @else
+                              <span>No Files</span>
+                         @endif
+                    </div>
+               </div>
+
+               @section("css")
+               <!-- Lightbox2 css1 js1  -->
+               <link href="{{ asset('assets/libs/lightbox2-dev/dist/css/lightbox.min.css') }}" type="text/css" rel="stylesheet"/>
+                         
+               @section("scripts")
+               <!-- Lightbox2 css1 js1  -->
+               <script src="{{ asset('assets/libs/lightbox2-dev/dist/js/lightbox.min.js') }}" type="text/javascript"></script>
+               <script>
+                    lightbox.option({
+                         'resizeDuration': 100,
+                         // 'wrapAround': true
+                    })
+               </script>
+
+          =leaves > index.blade.php 
+               <table id="mytable" class="table table-sm table-hover border">
+          
+                    <thead>
+                         <th>No</th>
+                         <th>Title</th>
+                         <th>Tag</th>
+                         <th>Start Date</th>
+                         <th>End Date</th>
+                         <th>Stage</th>
+                         <th>By</th>
+                         <th>Created At</th>
+                         <th>Updated At</th>
+                         <th>Action</th>
+                    </thead>
+          
+                    <tbody>
+                         @foreach($leaves as $idx=>$leave)
+                         <tr>
+                              <td>{{++$idx}}</td>
+                              <td><a href="{{ route('leaves.show',$leave->id) }}">{{Str::limit($leave->title,20)}}</a></td>
+                              <td>
+                                   @php 
+                                        $tagids = json_decode($leave->tag,true); // Decode Json-encoded tags
+                                        $tagnames = collect($tagids)->map(function($id) use($users){
+                                             return $users[$id];
+                                        });
+                                   @endphp
+                                   {{ $tagnames->join(',') }} {{-- Display names comma-seperate --}}
+                                   
+                                   {{-- $leave->maptagtonames($users) --}}
+                              </td>
+                              <td>{{ $leave->startdate }}</td>
+                              <td>{{ $leave->enddate }}</td>
+                              <td>{{ $leave->stage["name"] }}</td>
+                              <td>{{ $leave->user["name"] }}</td>
+                              <td>{{ $leave->created_at->format('d M Y') }}</td>
+                              <td>{{ $leave->updated_at->format('d M Y') }}</td>
+                              <td>
+                                   <a href="{{ route('leaves.show',$leave->id) }}" class="text-primary"><i class="fas fa-book-reader"></i></a>
+                                   <a href="{{ route('leaves.edit',$leave->id) }}" class="text-info ms-2"><i class="fas fa-pen"></i></a>
+                                   <a href="#" class="text-danger ms-2 delete-btns" data-idx="{{$idx}}"><i class="fas fa-trash-alt"></i></a>
+                              </td>
+                              <form id="formdelete-{{ $idx }}" class="" action="{{route('leaves.destroy',$leave->id)}}" method="POST">
+                                   @csrf
+                                   @method("DELETE")
+                              </form>
+                         </tr>
+                         @endforeach
+                    </tbody>
+               </table>
+
+          =In Leave.php  
+               public function maptagtonames($users = null){
+                    $tagids = json_decode($this->tag,true); // Decode Json-encoded tags
+                    $tagnames = collect($tagids)->map(function($id) use($users){
+                         return $users[$id];
+                    });
+                    return $tagnames->join(", ");
+               }
+
+          =In LeavesController.php 
+               public function create()
+               {    
+                         $this->authorize('create',Leave::class);
+                    $data["posts"] = \DB::table("posts")->where("attshow",3)->orderBy("title","asc")->pluck("title","id");
+                    $data["tags"] = User::whereHas('roles',function($query){
+                         $query->whereIn('name',['Admin','Teacher']);
+                    })->orderBy("name","asc")->get()->pluck("name","id");
+                    $data["gettoday"] = Carbon::today()->format("Y-m-d"); // get today // "2024-02-26"
+                    // dd($data["gettoday"]);
+                    return view("leaves.create",$data);
+               }
+
+          =>Leave Approval Process 
+               =In Leave.php 
+                    public function isconverted(){
+                         return $this->stage_id != 2; // 2 = pending
+                    }
+
+               =In LeavesController.php 
+                    public function updatestage(Request $request,$id){
+                         $leave = Leave::findOrFail($id);
+                         $leave->stage_id = $request->stage_id;
+                         $leave->save();
+
+                         return redirect()->back()->with("success","Stage update Successfully");
+                    }
+
+               =In leaves > show.blade.php 
+                    
+                    @if(auth()->user()->hasRoles(["Admin","Teacher"]))
+                    <h6>Control Session</h6>
+                    <div class="card border-0 rounded-0 shadow mb-4">
+                         <ul class="nav">
+                              <li class="nav-item">
+                                   <button type="button" id="autoclick" class="tablinks" onclick="gettab(event,'authorizationtag')">Authorization</button>
+                              </li>
+                         </ul>
+
+                         <div class="tab-content">
+
+                              <div id="authorizationtag" class="tab-pane">
+                                   <form action="{{ route('leaves.updatestage',$leave->id) }}" method="POST">
+                                        @csrf
+                                        @method("PUT")
+
+                                             
+                                             <div class="col-md-3 form-group mb-3">
+                                                  <select name="stage_id" id="stage_id" class="form-control form-control-sm rounded-0 country_id">
+                                                       <option value="" disabled selected>Choose a country</option>
+                                                       @foreach($stages as $stage)
+                                                            <option value="{{$stage['id']}}" {{ $leave->stage_id == $stage->id ? 'selected' : '' }}>{{$stage['name']}}</option>
+                                                       @endforeach     
+                                                  </select>
+                                             </div>
+                                             
+
+                                             @if($leave->isconverted())
+                                                  <small class="text-danger">This leave for has already been converted to an authorized stage. Editing is disabled.</small>
+                                             @endif
+
+                                             <div class="col-md-3">
+                                                  <div class="d-flex justify-content-end">
+                                                       <button type="submit" class="btn btn-primary btn-sm rounded-0 ms-3" {{ $leave->isconverted() ? 'disabled' : '' }}>Update</button>
+                                                  </div>
+                                             </div>
+                                   </form>
+                              </div>
+                         </div>
+                    </div>
+                    @endif
+
+               =In leaves.edit.blade.php 
+                    @if($leave->isconverted())
+                         <small class="text-danger">This leave for has already been converted to an authorized stage. Editing is disabled.</small>
+                    @endif
+                    <div class="col-md-12 d-flex justify-content-end align-items-end">
+                         <div class="">
+                              <a href="{{route('leaves.index')}}" class="btn btn-secondary btn-sm rounded-0 me-3">Cancel</a>
+                              <button type="submit" class="btn btn-primary btn-sm rounded-0"  {{ $leave->isconverted() ? 'disabled' : '' }}>Submit</button>
+                         </div>
+                    </div>
+
+               =In LeaveController.php (Prevent from backend)
+                    public function destroy(string $id)
+                    {
+                         $leave = Leave::findOrFail($id);
+                              $this->authorize('delete',$leave);
+
+                         if($leave->isconverted()){
+                              return redirect()->back()->with('error',"Already been converted to an authorized stage. Delete function is not allowed.");
+                         }
+                         ....
+
+                    }
+
+                    public function update(LeaveRequest $request, string $id)
+                    {
+                         // $this->validate($request,[
+                         //     "post_id" => "required",
+                         //     "startdate" => "required",
+                         //     "enddate" => "required",
+                         //     "tag" => "required",
+                         //     "title" => "required|max:50",
+                         //     "content" => "required",
+                         //     "image" => "nullable|image|mimes:jpg,jpeg,png|max:1024",
+                         // ]);
+
+                         $user = Auth::user();
+                         $user_id = $user["id"];
+
+                         $leave = Leave::findOrFail($id);
+                              $this->authorize('edit',$leave);
+                         $leave->post_id = json_encode($request["post_id"]);
+                         $leave->startdate = $request["startdate"];
+                         $leave->enddate = $request["enddate"];
+                         $leave->tag = json_encode($request["tag"]);
+                         $leave->title = $request["title"];
+                         $leave->content = $request["content"];
+
+                         if($leave->isconverted()){
+                              return redirect()->back()->with('error',"This leave for has already been converted to an authorized stage. Editing is disabled.");
+                         }
+
+                         ....
+                    }
+
+                    
