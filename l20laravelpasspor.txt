@@ -1,0 +1,612 @@
+=>Laravel 10 install Passport
+
+composer require laravel/passport
+php artisan migrate 
+php artisan passport:install
+
+
+ Would you like to run all pending database migrations? (yes/no) [yes]:                                             es/no) [yes]:
+ > yes
+
+  Would you like to create the "personal access" and "password grant" clients? (yes/no) [yes]:
+ > yes
+
+ Note: (php artisan passport:install will generate 0auth-private.key and 0auth-public.key files are located at storage folder)
+
+
+     =In Php myadmin 
+          SELECT * FROM `oauth_clients`
+
+
+          id	user_id	name	                                             secret	                                   provider	redirect	          personal_access_client	password_client	revoked	created_at	updated_at	
+          1	NULL	DLT Student Management Project Personal Access Cli...	8DW0zB3eNw3Oy35IT9uG351VcHIgHvgTmysPlCkS	NULL	     http://localhost	1	0	0	2025-01-22 22:04:47	2025-01-22 22:04:47	
+          2	NULL	DLT Student Management Project Password Grant Clie...	Zxv9bAbyOrAirk7b22kLgIKw4IL0KEdSUFqc2X9U	users	http://localhost	0	1	0	2025-01-22 22:04:47	2025-01-22 22:04:47	
+
+=>Modify User modal namespace App\Model\User
+     use Laravel\Passport\HasApiTokens;
+
+     class User extends Authenticatable implements MustVerifyEmail
+     {
+          use HasApiTokens, HasFactory, Notifiable;
+
+=>Configure Guard in config/auth.php 
+     'guards' => [
+          'web' => [
+               'driver' => 'session',
+               'provider' => 'users',
+          ],
+          'api' => [
+               'driver' => 'passport',
+               'provider' => 'users',
+          ],
+     ],
+
+
+
+
+=>Check providers in config/auth.php
+      'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\User::class,
+        ],
+
+        // 'users' => [
+        //     'driver' => 'database',
+        //     'table' => 'users',
+        // ],
+    ],
+
+
+=> Regenerate oauth-private.key and oauth-public key (Optional)
+    php artisan passport:keys
+
+
+====> Manual Setting Config(Very important Stage)
+     secret keys already exists in 
+          storege >
+          oauth-private.key
+          oauth-public.key
+     *Have to redefine keys path
+
+     mkdir -p secrets/auth
+     mv storage/oauth-private.key secrets/oauth/private.key
+     mv storage/oauth-public.key secrets/oauth/public.key
+
+     la -l secrets/oauth
+     cat secrets/oauth/private.key 
+     cat secrets/oauth/public.key
+
+     sudo chmod 777 secrets/oauth/private.key
+     sudo chmod 777 secrets/oauth/public.key
+
+=>Config App\Providers\AuthServideProvider
+     use Laravel\Passport\Passport;
+     public function boot(): void
+     {
+          $this->registerPolicies();
+          // Passport::loadKeysFrom(storage_path('secrets/oauth'));
+          // Load keys from custom directory
+          Passport::loadKeysFrom(base_path('secrets/oauth'));
+
+          // Debugging Tips
+          if(!file_exists(base_path('secrets/oauth/private.key')) || !file_exists(base_path('secrets/oauth/public.key'))){
+               \Log::error("oauth keys are missing");
+          }else{
+               \Log::error("oauth keys are exists");
+          }
+     }
+
+     *Passport class can found inside vendor >
+
+=>config .env file 
+     PASSPORT_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
+     <private key here>
+     -----END RSA PRIVATE KEY-----"
+     
+     PASSPORT_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----
+     <public key here>
+     -----END PUBLIC KEY-----"
+
+=> Public Passport Configuration
+     php artisan vendor:publish --tag=passport-config
+     php artisan vendor:publish --tag=passport-migrations
+
+
+php artisan make:controller Api/AuthController
+     =In AuthController.php
+          use Illuminate\Support\Facades\Hash;
+          use Illuminate\Support\Facades\Validator;
+          use App\Models\User;
+          public function register(Request $request){
+               $validator = Validator::make($request->all(),[
+                    "name" => "required|string|max:100",
+                    "email" => "required|string|email|max:100|unique:users,email",
+                    "password" => "required|string|min:8|confirmed",
+               ]);
+               
+
+               if($validator->fails()){
+                    return response()->json($validator->errors(),422);
+               }
+
+               $user = User::create([
+                    "name"=>$request->name,
+                    "email"=>$request->email,
+                    "password"=> Hash::make($request->password)
+                    // "password"=>bcrypt($request->password)
+               ]);
+               // $token = $user->createToken("API Token")->accessToken;
+
+               return response()->json([
+                    "message"=>"User registered successfully."
+                    // "token"=>$token
+               ],200);
+          }
+
+          public function login(Request $request){
+               $validator = Validator::make($request->all(),[
+                    "email" => "required|string|email",
+                    "password" => "required|string",
+               ]);
+               
+
+               if($validator->fails()){
+                    return response()->json($validator->errors(),422);
+               }
+
+               $user = User::where('email',$request->email)->first();
+
+               if(!$user || !Hash::check($request["password"],$user->password)){
+                    return response()->json(["message"=>"Invalid credentials"],401);
+               }
+
+               // Generate token
+               $createtoken = $user->createToken("Personal Access Token");
+               $token = $createtoken->accessToken;
+
+               return response()->json([
+                    "accesstoken"=>$token,
+                    "token_type"=>"Bearer"
+               ],200);
+          }
+
+          public function logout(Request $request){
+               $request->user()->token()->revoke();
+
+               return response()->json(["message"=>"Logged out successfully"]);
+          }
+
+     =In api.php
+          Route::post('/register',[AuthController::class,"register"]);
+          Route::post('/login',[AuthController::class,"login"]);
+
+          Route::post('/logout',[AuthController::class,"logout"])->middleware("auth:api");
+          Route::middleware(["auth:api"])->group(function(){
+               Route::apiResource("warehouses",WarehousesController::class,["as"=>"api"]);
+          });
+     =Postman
+          http://127.0.0.1:8000/api/register (POST)
+               Authorization - No Auth
+               Body -
+                    {
+                         "name":"yamon",
+                         "email":"yamon@gmail.com",
+                         "password":"123456789",
+                         "password_confirmation":"123456789"
+                    }
+          
+          `users`
+               50	yamon	yamon@gmail.com	NULL	$2y$12$F3qxaHEwu0.8pUOMZq81R.1PxLJQq/1q0.5sqX1OycC...	0	NULL	NULL	NULL	NULL	2025-01-26 18:36:45	2025-01-26 18:36:45	
+
+          Body - 
+          http://127.0.0.1:8000/api/login (POST)
+          {
+               "email":"yamon@gmail.com",
+               "password":"123456789"
+          }
+          
+          `oauth_access_tokens`
+          d91fbe4b8bc3a93b61e50f80797e9fde8f2136039307ea36b8...	50	1	Personal Access Token	[]	0	2025-01-26 18:47:51	2025-01-26 18:47:54	2026-01-26 18:47:51	
+
+
+
+
+     Password Grant Client:
+          Purpose: To log users into your app and issue a short-lived token for API access.
+          Example:
+          A user opens a mobile app, enters their username and password, and the app exchanges those credentials for an access token.
+          The app uses the token to fetch the user's profile or account data.
+
+          *Providing NRC at a hotel, and hotel issue their room keys and gieve breakfast ticket.
+     
+     Personal Access Client:
+     Purpose: To allow users to generate their own tokens for API access, often for external tools like Postman or scripts.
+          Example:
+          A developer generates a token in their account settings and uses it to test API endpoints in Postman.
+
+          *Getting cruise to ticket to ride a way
+
+     Password Grant Client: Think of it as checking into a hotel—your credentials are verified once, and you’re issued a key to access services for a limited time.
+     Personal Access Client: Think of it as having a membership card that lets you generate your own tickets for access whenever needed.
+
+
+
+     1. Default Clients Are System-Level Entities
+          The clients in the oauth_clients table represent applications, not individual users.
+          These clients are created during the installation of Laravel Passport to handle authentication flows like personal access tokens or password grants.
+          Since these are system-wide clients, they are not tied to a specific user (user_id is NULL).
+     2. How Tokens Are Generated Without a user_id
+          When a token is generated:
+
+          The user_id is associated with the token (in the oauth_access_tokens table), not the client.
+          The client_id is used to determine the type of authentication flow (e.g., personal access or password grant).
+          For example:
+
+          In a Password Grant Flow, the system validates the user’s credentials (e.g., username and password) and issues a token tied to that user (user_id in the oauth_access_tokens table).
+          In a Personal Access Flow, the user explicitly generates a token, which is again tied to their account (user_id).
+     3. Why Default Clients Work Without a User
+          Personal Access Client:
+          It allows users to generate personal access tokens for their account. The client doesn’t need a user_id because the token will be tied to the user generating it.
+
+          Password Grant Client:
+          It verifies the credentials provided during the login process and issues a token for the user. Again, the client_id is used to handle the authentication logic, while the resulting token is linked to the authenticated user.
+
+     4. Security in Place
+          Even though these clients are not assigned to a specific user:
+
+          They require a client ID and client secret for authentication.
+          The token generation process ensures that the resulting token is tied to an authenticated user.
+
+
+          securely issue and validate tokens in Laravel Passport. These keys play a crucial role in token generation and verification, ensuring the system's security and integrity.
+
+     How the Private and Public Keys Work
+     Private Key:
+
+          Used by the server to sign tokens (e.g., access tokens and refresh tokens).
+          Ensures that the token was generated by a trusted source (your application).
+     Public Key:
+
+          Used to verify tokens.
+          Ensures that the token has not been tampered with and is valid.
+          Public keys can be shared securely because they cannot reverse-engineer the private key.
+     How These Work Together with OAuth Clients
+     1. Token Generation (Private Key)
+          When a client (e.g., Password Grant Client or Personal Access Client) requests a token, the following steps occur:
+
+          The client sends a request to the OAuth server (your Laravel application) with its client_id, client_secret, and other required information (like user credentials in the Password Grant Flow).
+          The OAuth server authenticates the client and, if applicable, the user.
+          The server generates a token (e.g., JWT) and signs it using the private key.
+          The token contains claims (e.g., user_id, client_id, scopes) that specify what the token can access.
+     2. Token Verification (Public Key)
+          When an API request is made using the token:
+
+          The server extracts the token from the request (usually from the Authorization header).
+          It uses the public key to verify the token's signature.
+          This ensures the token is valid and was issued by the server (using the private key).
+          If the token is valid, the server processes the request based on the token's claims (e.g., user ID, client ID, scopes).
+     Role of Clients in This Process
+     Personal Access Client
+          Used for generating long-lived tokens tied to a specific user.
+          The client itself is authenticated using the client_id and client_secret.
+          The token is signed with the private key and verified later with the public key when used.
+     Password Grant Client
+          Used for authenticating users with their credentials.
+          The client sends the user's credentials (e.g., email and password) to the server.
+          After verifying the user's credentials, the server issues a token.
+          The token is signed with the private key and later verified with the public key during API requests.
+     Flow Summary
+          Step	Key Used	Purpose
+          Token Generation	Private Key	Signs the token to ensure it was issued by the server and has not been tampered with.
+          Token Verification	Public Key	Verifies the token's signature to ensure it is valid and trustworthy.
+          Client Authentication	Client Secret	Ensures that the client (e.g., Personal Access Client or Password Grant Client) is authorized to request tokens.
+
+     What Does auth:api Middleware Do?
+          Purpose:
+
+               It ensures that only authenticated users can access the routes within the group.
+               The auth:api middleware checks the API request for a valid authentication token, such as a Bearer token in the Authorization header.
+          How It Works:
+
+               When a request is made to an API route protected by auth:api, Laravel will:
+               Extract the token from the Authorization header.
+               Validate the token using the configured guard.
+               If the token is valid, the authenticated user is allowed to access the route.
+               If the token is invalid, expired, or missing, the request is denied with a 401 Unauthorized response.
+
+     The auth:api middleware is a general middleware provided by Laravel to protect API routes.
+     It is not specific to Laravel Passport but works seamlessly with it when the api guard is configured to use Passport's passport driver.
+     If you're using Laravel Passport, auth:api will ensure that only requests with valid Passport-issued tokens can access the protected routes.
+
+
+     =In Posot man
+          http://127.0.0.1:8000/api/logout
+
+          Authorization - Bearer Token
+                         Token = eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9
+          Body - 
+
+
+          =In phpMyadmin
+               SELECT * FROM `oauth_access_tokens`
+
+               63c1df5a52d81069eb68aac23986d1fec619285729e734be73...	50	1	Personal Access Token	[]	1	2025-01-29 06:53:13	2025-01-29 06:59:14	2026-01-29 06:53:13	
+
+               *mark as revoked.
+               *scope[] can be defined roles and permissions.
+               =>In AuthServideProvider.php
+
+     Why Isn't the Token Deleted?
+          Token Revocation vs. Deletion
+
+          When a token is revoked, it is marked as revoked (revoked = 1), but it remains in the database for record-keeping.
+          This allows Laravel to check if a token was used in the past and prevent reusing revoked tokens.
+          Security & Audit Trail
+
+          Keeping revoked tokens in the database helps maintain a history of token usage.
+          This can be useful for logging, debugging, and security audits.
+          OAuth2 Specification Compliance
+
+          Laravel Passport follows the OAuth2 standard, which recommends revoking rather than deleting tokens.
+
+
+     =In Postman 
+          http://127.0.0.1:8000/api/warehouses
+
+          Authorization - No Auth
+          Header - Authorization = Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9
+                    Access = application/json
+          Body -
+
+
+          Using the Authorization Tab
+               How it works:
+               In the Authorization tab, select the type as Bearer Token and input the token in the provided field.
+               Postman automatically adds the Authorization header with the Bearer {token} format to your request.
+
+          Using the Headers Tab
+               How it works:
+               Manually add a header in the Headers tab:
+               makefile
+               Copy
+               Edit
+               Key: Authorization
+               Value: Bearer {token}
+
+     =>Unhidden keys 
+          =In warehouses > index.blade.php 
+           $(document).ready(function(){
+
+               // Start Passing Header Token
+               $.ajaxSetup({
+                    headers:{
+                         "X-CSRF-TOKEN": $("meta[name='csrf-token']").attr("content"),
+                         "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNTM1NzBhMjg3Y2Y2NWNjYjY3MjhlODg0NzBkNjkyZWJiNWMzYzA2ZGNjOThjMjIwOWEwMjA3OWY2MjIxN2U4NTk1NTE2Yjc2ZjBhZmRmMTMiLCJpYXQiOjE3MzgxNDYwMjEuNjMyNDg0LCJuYmYiOjE3MzgxNDYwMjEuNjMyNDg5LCJleHAiOjE3Njk2ODIwMjAuODk2Mzc5LCJzdWIiOiI1MCIsInNjb3BlcyI6W119.KMA5x0UL1XWwj7qvi-VsGbwfcaCBh6F4vPJtCMHyDYhfsGFGA4GWkB81JQ5cEgF3u67UZRWBnOpKvXzigE5mkPdwKpOVGQaN7EiTVTSEXurSIZm8uuVwyPYxqnkEC-_QT9WIPlvoSJJ2GNk0aF3RaG4Z1W0HP0Dg15MN1RNDKsZ-Bm8tA8upLHVvgx3m01uVsJYpx1QMVgiTBfk008Ii45QzD5gXyfZmF_6S9XdOxNEywT1oPOgx_YAYV8VU7wemCVkdIdfYqBLzQW92MxGnpMoFcuWD85tT-5ONuhKDjw9Ie9iqL9Q58FspnWBcgC6pwLaC41KYMpKnqjRnEzOb5YGzIt8ez6f6sg4NnyjOkVOUXbQhKzhEHvAjTBGc8dvB_44-MYGlYcocBCughRvlPBxpiMQG0dZEAkVNnIhTyrY9SyzphvYsR-86kzX4SiD5_SaN_CDQBHC5L5S01mF-UvnWIOAvW14-_xXUec9VtvOYEkjNRB7BdtWrYTQUYdVt5W4_VUyQuakilZlpJsipKTgCbnhVoKV2ym5xLFEp7M3KWzOgoqteqJ3TQfCV8ay7MJkDU8yuvjBrZGaDmMfOFVjqHejyham-S3_tFQ8ElmWco2bcDa_NSYL-qfGlMSUQqkTy-uY2P4cPk5gMeSSQMfdzMS5UfwkW2dSAOSvXxjE",
+                         "Accept": "application/json"
+                    }
+               });
+
+     =>Hide Keys 
+          =In env.php 
+               PASSPORT_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiNTM1NzBhMjg3Y2Y2NWNjYjY3MjhlODg0NzBkNjkyZWJiNWMzYzA2ZGNjOThjMjIwOWEwMjA3OWY2MjIxN2U4NTk1NTE2Yjc2ZjBhZmRmMTMiLCJpYXQiOjE3MzgxNDYwMjEuNjMyNDg0LCJuYmYiOjE3MzgxNDYwMjEuNjMyNDg5LCJleHAiOjE3Njk2ODIwMjAuODk2Mzc5LCJzdWIiOiI1MCIsInNjb3BlcyI6W119.KMA5x0UL1XWwj7qvi-VsGbwfcaCBh6F4vPJtCMHyDYhfsGFGA4GWkB81JQ5cEgF3u67UZRWBnOpKvXzigE5mkPdwKpOVGQaN7EiTVTSEXurSIZm8uuVwyPYxqnkEC-_QT9WIPlvoSJJ2GNk0aF3RaG4Z1W0HP0Dg15MN1RNDKsZ-Bm8tA8upLHVvgx3m01uVsJYpx1QMVgiTBfk008Ii45QzD5gXyfZmF_6S9XdOxNEywT1oPOgx_YAYV8VU7wemCVkdIdfYqBLzQW92MxGnpMoFcuWD85tT-5ONuhKDjw9Ie9iqL9Q58FspnWBcgC6pwLaC41KYMpKnqjRnEzOb5YGzIt8ez6f6sg4NnyjOkVOUXbQhKzhEHvAjTBGc8dvB_44-MYGlYcocBCughRvlPBxpiMQG0dZEAkVNnIhTyrY9SyzphvYsR-86kzX4SiD5_SaN_CDQBHC5L5S01mF-UvnWIOAvW14-_xXUec9VtvOYEkjNRB7BdtWrYTQUYdVt5W4_VUyQuakilZlpJsipKTgCbnhVoKV2ym5xLFEp7M3KWzOgoqteqJ3TQfCV8ay7MJkDU8yuvjBrZGaDmMfOFVjqHejyham-S3_tFQ8ElmWco2bcDa_NSYL-qfGlMSUQqkTy-uY2P4cPk5gMeSSQMfdzMS5UfwkW2dSAOSvXxjE"
+
+          =In app.php 
+                "passport_token"=> env("PASSPORT_TOKEN",null),
+
+               ];
+
+          =In warehouses > index.blade.php 
+          const token = "Bearer {{ config('app.passport_token')}}";
+               // console.log(token);
+               // Start Passing Header Token
+               $.ajaxSetup({
+                    headers:{
+                         "X-CSRF-TOKEN": $("meta[name='csrf-token']").attr("content"),
+                         "Authorization": token,
+                         "Accept": "application/json"
+                    }
+               });
+
+          Homework 
+               -All api resources must inside auth 
+               -api header must be formatted
+
+     =>Formatting json response and error response 
+          =In Controller.php 
+               public function sendRespond($result,$message){
+                    $response = [
+                         'success'=>true,
+                         'data'=>$result,
+                         'message'=>$message
+                    ];
+                    return response()->json($response,200);
+               }
+
+               public function sendError($message=[],$errors=[],$code=404){
+                    $response = [
+                         'success'=>false,
+                         'message'=>$message
+                    ];
+                    // dd($errors);
+                    if(!empty($errors) || count($errors) > 0){
+                         $response['data'] = $errors;
+                    }
+
+                    return response()->json($response,$code);
+               }
+
+          =In WarehousesController.php 
+               public function index()
+               {
+                    // $warehouses = Warehouse::all();
+                    // return new WarehousesCollection($warehouses);
+
+                    $warehouses = Warehouse::paginate(5);
+
+                    return $this->sendRespond(new WarehousesCollection($warehouses),"Warehouses retrived successfully");
+               }
+
+               /**
+                    * Store a newly created resource in storage.
+                    */
+               public function store(Request $request)
+               {
+                    $validator = Validator::make($request->all(),[
+                         "name" => "required|unique:warehouses,name",
+                         "status_id" => "required",
+                         "user_id" => "required"
+                    ]);
+                    
+
+                    if($validator->fails()){
+                         return $this->sendError("Validation Error",$validator->errors());
+                    }
+
+                    $warehouse = new Warehouse();
+                    $warehouse->name = $request["name"];
+                    $warehouse->slug = Str::slug($request["name"]);
+                    $warehouse->status_id = $request["status_id"];
+                    $warehouse->user_id = $request["user_id"];
+
+                    $warehouse->save();
+
+                    return $this->sendRespond(new WarehousesResource($warehouse),"Warehouses created successfully");
+               }
+
+               /**
+                    * Display the specified resource.
+                    */
+               public function show(string $id)
+               {
+                    $warehouse = Warehouse::findOrFail();
+                    if(is_null($warehouse)){
+                         return $this->sendError("Warehouse not found.");
+                    }
+                    return $this->sendRespond(new WarehousesResource($warehouse),"Warehouses retrived successfully");
+               }
+
+               /**
+                    * Update the specified resource in storage.
+                    */
+               public function update(Request $request, string $id)
+               {
+                    $validator = Validator::make($request->all(),[
+                         "name" => "required|unique:warehouses,name".$id,
+                         "status_id" => "required",
+                         "user_id" => "required"
+                    ]);
+                    if($validator->fails()){
+                         return $this->sendError("Validation Error",$validator->errors());
+                    }
+
+                    $warehouse = Warehouse::findOrFail($id);
+                    $warehouse->name = $request["name"];
+                    $warehouse->slug = Str::slug($request["name"]);
+                    $warehouse->status_id = $request["status_id"];
+                    $warehouse->user_id = $request["user_id"];
+
+                    $warehouse->save();
+
+                    return $this->sendRespond(new WarehousesResource($warehouse),"Warehouses updated successfully");
+                    
+               }
+
+
+               /**
+                    * Remove the specified resource from storage.
+                    */
+               public function destroy(string $id)
+               {
+                    $warehouse = Warehouse::findOrFail($id);
+                    $warehouse->delete();
+                    return $this->sendRespond(new WarehousesResource($warehouse),"Warehouses deleted successfully");
+
+                    
+               }
+
+               public function typestatus(Request $request){
+                    $warehouse = Warehouse::findOrFail($request["id"]);
+                    $warehouse->status_id = $request["status_id"];
+                    $warehouse->save();
+
+                    return $this->sendRespond(new WarehousesResource($warehouse),"Warehouses status changed.");
+
+               }
+
+     =>Index dashboard 
+          =In LeavesController.php 
+                public function index()
+               {
+                    if(auth()->user()->can('viewany',Leave::class)){
+                         $leavesQuery = Leave::query(); // Admin,Teacher can see all leaves
+                    }else{
+                         $leavesQuery = Leave::where('user_id',auth()->id());
+                    }
+                    $leaves = $leavesQuery
+                                   ->orderBy('startdate','desc')
+                                   ->get();
+
+                    $totalleaves = $leaves->count();
+                    $approvedcount = $leaves->where('stage_id',1)->count();
+                    $pendingcount = $leaves->where('stage_id',2)->count();
+                    $rejectedcount = $leaves->where('stage_id',3)->count();
+
+
+                    $users = User::pluck('name','id');
+                    return view("leaves.index",compact("leaves","totalleaves","approvedcount","pendingcount","rejectedcount","users"));
+               }
+
+          =In leaves > index.php 
+               <div class="col-md-12">
+                    <div class="row">
+                         <div class="col-md-3">
+                              <div class="card border-0 bg-primary rounded text-white  mb-3">
+                                   <div class="card-body">
+                                        <h6 class="card-title">Total Leaves</h6>
+                                        <span class="card-text">{{ $totalleaves }}</span>
+                                   </div>
+                              </div>
+                         </div>
+                         <div class="col-md-3">
+                              <div class="card bg-success border-0 rounded text-white  mb-3">
+                                   <div class="card-body">
+                                        <h6 class="card-title">Approved</h6>
+                                        <span class="card-text">{{ $approvedcount }}</span>
+                                   </div>
+                              </div>
+                         </div>
+                         <div class="col-md-3">
+                              <div class="card bg-warning border-0 rounded text-white  mb-3">
+                                   <div class="card-body">
+                                        <h6 class="card-title">Pending</h6>
+                                        <span class="card-text">{{ $pendingcount }}</span>
+                                   </div>
+                              </div>
+                         </div>
+                         <div class="col-md-3">
+                              <div class="card bg-danger border-0 rounded text-white  mb-3">
+                                   <div class="card-body">
+                                        <h6 class="card-title">Rejected</h6>
+                                        <span class="card-text">{{ $rejectedcount }}</span>
+                                   </div>
+                              </div>
+                         </div>
+                    
+                    </div>
+               </div>
+          =>HW 
+               =All dashboard box 
+                    warehouses 
+                    students
+                    leaves 
+                    announcements
+
+               =All api formated response and error
+
+
+
+
+
+
+
